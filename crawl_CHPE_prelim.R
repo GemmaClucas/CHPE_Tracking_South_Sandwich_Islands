@@ -1,6 +1,4 @@
 
-setwd("~/Dropbox/South_Sandwich_2020/CHPE_tracking_analyses")
-
 ##load required libraries
 library(crawl)   #to fit Kalman filter models
 library(trip)    #to prepare GPS data
