@@ -130,7 +130,7 @@ x1$Time <- adjust.duplicateTimes(x1$Time, x1$PTT)
 ```{r}
 # I can't find a way to do this without making a new dataframe -_-
 x2 <- x1 %>% 
-  select(LAT, LON, Time, PTT) 
+  dplyr::select(LAT, LON, Time, PTT) 
 
 #Change it into class SpatialPointsDataFrame 
 coordinates(x2) <- c("LON","LAT")
@@ -142,7 +142,7 @@ x2$Pass_speed <-
   speedfilter(., max.speed = 20) 
 
 # Filter the original dataframe
-x1 %>% filter(x2$Pass_speed == TRUE)
+x1 <- x1 %>% dplyr::filter(x2$Pass_speed == TRUE)
 ```
 
 
