@@ -145,28 +145,6 @@ x2$Pass_speed <-
 x1 %>% filter(x2$Pass_speed == TRUE)
 ```
 
-# make a new data frame
-x2<-data.frame(lat=x1$LAT,lon=x1$LON,Date=x1$Time,id=x1$PTT)
-
-#Change it into class SpatialPointsDataFrame 
-coordinates(x2) <- c("lon","lat")
-
-#create trip object
-tr <- trip(x2,c("Date","id"))
-
-#McConnell Speed filter; ignore coordinates warning as data are lonlat
-x1$Filter <- speedfilter(tr, max.speed = 8)
-
-#remove filtered coordinates
-x1<-subset(x1,x1$Filter==TRUE)
-head(x1)
-
-#create dataframe with only the required data
-xy<-data.frame(longitude = x1$LON, latitude = x1$LAT, time = x1$Time2, id = x1$PTT,
-               Argos_loc_class = x1$Argos_loc_class)
-head(xy)
-tail(xy)
-
 
 
 ## Questions to ask
