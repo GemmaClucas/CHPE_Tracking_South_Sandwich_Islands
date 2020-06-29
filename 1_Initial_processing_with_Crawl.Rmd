@@ -2,7 +2,7 @@
 title: "Crawling first 10 individuals"
 author: "Gemma Clucas"
 date: "6/29/2020"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, message = FALSE}
