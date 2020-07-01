@@ -1,5 +1,5 @@
 ---
-title: "Crawling first 10 individuals"
+title: "Initial processing with Crawl"
 author: "Gemma Clucas"
 date: "6/29/2020"
 output: github_document
@@ -17,28 +17,27 @@ library(rgdal)
 library(raster)
 library(ggplot2)
 library(knitr)
+options(scipen=999)
 ```
 
 ## Load data
 
-This is the data that Phil sent over on April 1st 2020. It only includes data for the first 10 individuals (PTTs 196697 - 196706) so I will need to run this code a second time once we have the data for PTTs 196707 - 196716.
+This is the data that Claudia sent over on 30th June 2020. 
 
 ```{r}
-raw <- read.csv("raw_data/P_Trathen_chinstrap_data.csv")
+raw <- read.csv("raw_data/satellite_tracking_data_30_06_20.csv")
 ```
 
 ## Prepare data for analysis
 
 **Format times**  
 
-The date and time come in two formats in the CSV file:  
-* dd/mm/yy hh:mm  
-* dd/mm/yyyy hh:mm:ss  
+The date and time are in the format:  
+* mm/dd/yy hh:mm
 
-I can use ```parse_date_time()``` from the ```lubridate``` package to change them into a consistent format.
-
+I can use the ```lubridate``` package to change them into a proper date-time.
 ```{r}
-raw$Time <- parse_date_time(raw$DATE, orders = c('dmy_HM', 'dmy_HMS'))
+raw$Time <- mdy_hm(raw$Date, tz = "UTC")
 ```
 
 Create a column with the time in hours since the first fix (that is, the first fix for all individuals).
@@ -46,16 +45,22 @@ Create a column with the time in hours since the first fix (that is, the first f
 raw$Time_since <- as.numeric(difftime(raw$Time, min(raw$Time), units="hours"))
 ```
 
-
 Remove duplicated rows and rename columns.
 ```{r}
 raw <- raw[!duplicated(raw), ]
 
 raw <- raw %>% 
-  rename(Argos_loc_class = LOC_CLASS, LON = LON1, LAT = LAT1)
+  rename(Argos_loc_class = Loc.Class, LON = Lon1, LAT = Lat1)
 
 
 ```
+
+At this stage I'm going to remove all the other columns from the dataframe and just keep the ones we will work with.
+```{r}
+clean <- raw %>% 
+  dplyr::select(Ptt, Time, Time_since, LON, LAT, Argos_loc_class, Uplink)
+```
+
 
 ## Create a map that we can plot the fixes onto later
 
@@ -65,7 +70,7 @@ Seamask<-readOGR("Seamask.shp")
 ```
 
 Don't try to plot the whole thing, it takes ages. The code to use would be ```plot(Seamask,axes=T)```.  
-Instead, crop to just the South Sandwich Islands (SSI).
+Instead, crop to just the South Sandwich Islands (SSI) and plot.
 
 ```{r, message = FALSE}
 SSI <- crop(Seamask, c(450000, 750000, -600000, 0))
@@ -88,7 +93,7 @@ plot(SSI_laea, axes = T)
 
 We need to run crawl on the tracks from each individual separately. First, display the PTT numbers:
 ```{r}
-unique(raw$PTT)
+unique(clean$Ptt)
 ```
 
 We'll start with ```196697``` and select the data for that individual.
@@ -96,8 +101,8 @@ We'll start with ```196697``` and select the data for that individual.
 
 penguin <- "196697"
 
-x1 <- raw %>%
-  filter(PTT == penguin)
+x1 <- clean %>%
+  filter(Ptt == penguin)
 
 kable(head(x1))
 ```
@@ -112,25 +117,25 @@ x1 %>%
   kable()
 ```
 
-There are quite a lot of low quality (B) fixes. We may need to remove them if crawling doesn't work very well. Make the error classes factors in order from most accurate to least accurate.
+There are quite a lot of low quality (B) fixes. We may need to remove them if crawling doesn't work very well. Make the error classes factors and put them in order from most accurate to least accurate.
 
 ```{r}
 x1$Argos_loc_class <- factor(x1$Argos_loc_class,  
-                             levels=c("3","2","1","0", "A")) 
+                             levels=c("3","2","1","0", "A","B")) 
 ```
 
 No idea why there are duplicated times in here still, but I get a warning in the next step if I do not do this.
 ```{r}
-x1$Time <- adjust.duplicateTimes(x1$Time, x1$PTT)
+x1$Time <- adjust.duplicateTimes(x1$Time, x1$Ptt)
 ```
 
 
 ## Apply McConnell speed filter in trip package to remove bad fixes
 
 ```{r}
-# I can't find a way to do this without making a new dataframe -_-
+# I can't find a way to do this without making a new dataframe x2
 x2 <- x1 %>% 
-  dplyr::select(LAT, LON, Time, PTT) 
+  dplyr::select(LAT, LON, Time, Ptt) 
 
 #Change it into class SpatialPointsDataFrame 
 coordinates(x2) <- c("LON","LAT")
@@ -138,17 +143,141 @@ coordinates(x2) <- c("LON","LAT")
 # Make it into a trip object, apply speed filter and save result to new variable called Pass_speed
 x2$Pass_speed <- 
   x2 %>% 
-  trip(., TORnames = c("Time","PTT")) %>% 
-  speedfilter(., max.speed = 20) 
+  trip(., TORnames = c("Time","Ptt")) %>% 
+  speedfilter(., max.speed = 8) 
 
 # Filter the original dataframe
 x1 <- x1 %>% dplyr::filter(x2$Pass_speed == TRUE)
 ```
 
+## Make the data spatial and project to Lambert Azimuthal Equal Area
+```{r}
+coordinates(x1) <- ~LON + LAT
+```
+
+First we have to give it a projection i.e. tell it it is in long lat with WGS84.
+```{r}
+proj4string(x1) <- CRS("+proj=longlat +ellps=WGS84")
+```
+
+Then we reproject it to laea. This is just centered on the long and lat of Saunders for now, maybe change to UTM zones later - **check this**
+```{r}
+x1 <- spTransform(x1, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+```
+
+We can now plot it with our laea projection of the islands (this looks terrible, but I'll fix it later). Note, ggplot2 can **only** plot dataframes, not `SpatialPointsDataFrames` or `SpatialPolygonsDataFrames`, which is what we have for `x1` and `SSI_laea`, respectively.
+```{r}
+plot(x1, axes=T)
+plot(SSI_laea, add=T)
+
+```
+
+## Set inital params for `crawl`
+
+I took these from the [pragmatic guide to crawling](https://jmlondon.github.io/crawl-workshop/crawl-practical.html#determining-your-model-parameters) and modified them for our data, so that the first co-ordinate is used to initialise `a` and the `P` params are from the guide:  
+
+>"When choosing the initial parameters, it is typical to have the mean centered on the first observation with zero velocity. a is the starting location for the model – the first known coordinate; and P is a 4x4 var-cov matrix that specifies the error (in projected units) for the initial coordinates."
+
+```{r}
+initial = list(a = c(coordinates(x1)[1,1], 0,
+                     coordinates(x1)[1,2], 0),
+               P = diag(c(10 ^ 2, 10 ^ 2, 10 ^ 2, 10 ^ 2)))
+```
+
+## Add location error priors
+
+From the pragmatic guide:
+
+> "The second option is to provide a prior distribution for each of the location quality classes. The crawl::crwMLE() function accepts a function for the ‘prior’ argument. In this example, we provide a normal distribution of the log-transformed error. The standard error is 0.2.
+
+```{r}
+prior <-  function(p) { 
+    dnorm(p[1], log(250), 0.2 , log = TRUE) +     # prior for 3
+      dnorm(p[2], log(500), 0.2 , log = TRUE) +   # prior for 2
+      dnorm(p[3], log(1500), 0.2, log = TRUE) +   # prior for 1
+      dnorm(p[4], log(2500), 0.4 , log = TRUE) +  # prior for 0
+      dnorm(p[5], log(2500), 0.4 , log = TRUE) +  # prior for A
+      dnorm(p[6], log(2500), 0.4 , log = TRUE) +  # prior for B
+      # skip p[7] as we won't provide a prior for sigma
+      dnorm(p[8], -4, 2, log = TRUE)              # prior for beta
+}
+```
+
+
+> "Previous documentation and examples that described a setup for ‘crawl’ often suggested users implement a mixed approach by providing both fixed values and constraints to optimize the fit and increase the model’s ability to converge with limited/challenging data. We now suggest users rely on prior distributions to achieve a similar intent but provide the model more flexibility. Users should feel free to explore various distributions and approaches for describing the priors (e.g. laplace, log-normal) based on their data and research questions.
+
+> "Those documents also often suggested fixing the beta parameter to 4 as the best approach to encourage challenging datasets to fit. This, essentially, forced the fit toward Brownian movement. We now suggest users rely on the prior distribution centered on -4 (smoother fit) and, if needed, fix the beta parameter to -4. Only fix the parameter to 4 as a final resort."
+
+Note that the guide used to suggest a standard deviation of 2 for the beta prior as well, but that seems to have been removed from the documentation.
+
+## Run crawl
+
+First remove and results from previous runs, then run it, saving the results to `fit1`. Note that I am caching the results from this section of code so that crawl is not re-run everytime I knit the document.
+```{r, cache = TRUE}
+if(exists("fit")){rm(fit)} 
+
+fit1 <- crwMLE( 
+  mov.model = ~1, 
+  err.model=list(x=~Argos_loc_class-1), 
+  drift=T, 
+  data=x1, 
+  Time.name="Time_since",  #method="L-BFGS-B",
+  initial.state=initial, 
+  prior=prior, 
+  control=list(trace=1, REPORT=1) 
+) 
+
+fit1 
+```
+
+## Predict locations at 5 minute intervals
+
+First make a new set of times, spaced by 5 minutes, to predict locations for.
+```{r}
+predTime <- seq(min(x1$Time_since), max(x1$Time_since), 1/12)
+```
+
+Then predict the location for each time point in `predTime`. The `predObj` dataframe that is produced contains the original locations from `x1`, but adds rows in between for the predicted locations at the time given in `predTime`. The predicted locations are stored in `predObj$mu.x` and `predObj$mu.y`.
+```{r}
+predObj <- crwPredict(object.crwFit = fit1, predTime = predTime, speedEst = TRUE, flat=TRUE) 
+kable(head(predObj))
+```
+
+## Plot the crawled tracks
+
+I want to plot the crawled track against the original data i.e. before the speed filter was applied. This means that I need to go back and filter the data for this penguin from the `clean` dataframe and project it to LAEA before I can plot it against `predObj`.
+
+```{r}
+par(mfrow=c(1,1))
+
+# get the original data for this penguin
+x3 <- clean %>%
+  filter(Ptt == penguin)
+
+# project to LAEA
+coordinates(x3) <- ~LON + LAT 
+proj4string(x3) <- CRS("+proj=longlat +ellps=WGS84")
+x3 <- spTransform(x3, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+
+# get just the coordinates from x3
+x3 <- coordinates(x3) %>% 
+  as.data.frame()
+
+ggplot() +
+  geom_point(data = x3, aes(x = LON, y = LAT), colour = "red") +
+  geom_path(data = predObj, aes(x = mu.x, y = mu.y)) 
+  # xlim(c(-35000,10000)) +
+  # ylim(c(0, 50000))
+```
+
+
+Still need to figure out how to plot the map from the SpatialPolygonsDataFrame.
+
+```
 
 
 ## Questions to ask
 
-1. What is the projection of the co-ordinates?
-2. Are the times in UTC?
-3. The speed filter of 8 - is that 8km/hr? It looks like a lot of points are being filtered.
+1. Are the times in UTC? Should I convert them to local times so that we can calculate proportion of day or night spent foraging?
+2. What are the units of the speed filter - is it km/hr? A lot of points are being filtered when it was set to 8, so I increased it to 15, but maybe this is not a good idea.
+3. 
