@@ -677,23 +677,17 @@ ggplot() +
 
 ![](1_Initial_processing_with_Crawl_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
-``` r
-  # xlim(c(-35000,10000)) +
-  # ylim(c(0, 50000))
-```
-
+It doesn’t look like it is doing anything crazy.  
 Still need to figure out how to plot the map from the
-SpatialPolygonsDataFrame.
-
-\`\`\`
+SpatialPolygonsDataFrame. Also, wrap everything up into functions so
+that I can repeat this easily for other penguins.
 
 ## Questions to ask
 
 1.  Are the times in UTC? Should I convert them to local times so that
     we can calculate proportion of day or night spent foraging?
 
-2.  What are the units of the speed filter - is it km/hr? A lot of
-    points are being filtered when it was set to 8, so I increased it to
-    15, but maybe this is not a good idea.
+2.  What are the units of the speed filter - is it km/hr? What is the
+    justification for setting it to 8?
 
 3.
