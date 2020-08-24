@@ -1,5 +1,5 @@
 ---
-title: "Initial processing with Crawl"
+title: "Initial processing with Crawl - caching not working"
 author: "Gemma Clucas"
 date: "6/29/2020"
 output: github_document
@@ -20,6 +20,8 @@ library(knitr)
 library(spdplyr)
 options(scipen=999)
 ```
+
+Note that caching the crawled tracks each penguin stopped working, so they would get overwritten each time I knitted this document. This document, therefore, shows the steps that I took for the first penguin only. I ran all the other penguins multiple times until I got no (or only a few) NAs when I ran crawl, and I have saved an image of the tracks for each PTT for later use.
 
 ## Load data
 
@@ -261,11 +263,11 @@ prior <-  function(p) {
 
 Note that the guide used to suggest a standard deviation of 2 for the beta prior as well, but that seems to have been removed from the documentation.
 
-## Run crawl
+## Run crawl (many times)
 
 First remove any results from previous runs, then run it, saving the results to `fit1`. Note that I am caching the results from this section of code so that crawl is not re-run everytime I knit the document.
-```{r, cache = TRUE, message = FALSE}
-if(exists("fit")){rm(fit)} 
+```{r crawl_196697, cache = TRUE, message = FALSE}
+if(exists("fit1")){rm(fit1)} 
 
 fit1 <- crwMLE( 
   mov.model = ~1, 
@@ -352,7 +354,9 @@ write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""),
 ```
 
 
-# Run for the other penguins in the dataset
+# Run for the other penguins in the dataset - except caching the results isn't working so the crawled tracks look hideous
+This gives an idea of what I was doing for each one though.
+
 
 ## Create functions for the different steps
 I am going to define functions to select and clean the data, and plot it, to reduce the amount of code that I have to re-write.
@@ -399,10 +403,25 @@ plot_cleaned_points <- function(x) {
     geom_point(data = x, aes(x = LON, y = LAT), colour = "orange")
 }  
 
+# define the prior for crawl
+prior <-  function(p) { 
+    dnorm(p[1], log(250), 0.2 , log = TRUE) +     # prior for 3
+      dnorm(p[2], log(500), 0.2 , log = TRUE) +   # prior for 2
+      dnorm(p[3], log(1500), 0.2, log = TRUE) +   # prior for 1
+      dnorm(p[4], log(2500), 0.4 , log = TRUE) +  # prior for 0
+      dnorm(p[5], log(2500), 0.4 , log = TRUE) +  # prior for A
+      dnorm(p[6], log(2500), 0.4 , log = TRUE) +  # prior for B
+      # skip p[7] as we won't provide a prior for sigma
+      dnorm(p[8], -4, 2, log = TRUE)              # prior for beta
+}
+
 
 # define a function for crawling
 crawl <- function(x1) {
-  if(exists("fit")){rm(fit)} 
+  if(exists("fit1")){rm(fit1)}
+  initial = list(a = c(coordinates(x1)[1,1], 0,
+                     coordinates(x1)[1,2], 0),
+               P = diag(c(10 ^ 2, 10 ^ 2, 10 ^ 2, 10 ^ 2)))
   fit1 <- crwMLE( 
     mov.model = ~1, 
     err.model=list(x=~Argos_loc_class-1), 
@@ -609,17 +628,22 @@ x1.df <- data.frame(x1)
 
 Crawl (ran many times).
 
-```{r, cache= TRUE}
+```{r crawl_196700, cache = TRUE}
+if(exists("fit1")){rm(fit1)} 
 fit1 <- crawl(x1)
 print(fit1)
+```
 
+This was the best I could get, but the tracks look ok below
+
+```{r}
 predTime <- predict_times(x1)
 predObj <- predict_points(fit1, predTime)
 
 plot_crawled_track()
-
 plot_crawled_track_Saunders()
 ```
+
 
 **There seem to be a lot of points lost due to the speed filter on this penguin. Should I re-run with a more lenient filter?** 
 
