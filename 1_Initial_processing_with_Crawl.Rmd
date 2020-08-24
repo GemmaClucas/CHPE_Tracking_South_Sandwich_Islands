@@ -17,6 +17,7 @@ library(rgdal)
 library(raster)
 library(ggplot2)
 library(knitr)
+library(spdplyr)
 options(scipen=999)
 ```
 
@@ -69,12 +70,32 @@ This is the SGSSI shapefile that Vicky and I found.
 Seamask<-readOGR("Seamask.shp")
 ```
 
-Don't try to plot the whole thing, it takes ages. The code to use would be ```plot(Seamask,axes=T)```.  
-Instead, crop to just the South Sandwich Islands (SSI) and plot.
+Don't try to plot the whole thing, it takes ages as it includes all of South Georgia. The code to use would be ```plot(Seamask,axes=T)```.  
 
-```{r, message = FALSE}
-SSI <- crop(Seamask, c(450000, 750000, -600000, 0))
-plot(SSI, axes = TRUE)
+Instead, crop to just the South Sandwich Islands (SSI) and convert to a dataframe that can be plotted with ggplot. The code for doing the conversion is from https://github.com/tidyverse/ggplot2/wiki/plotting-polygon-shapefiles
+
+```{r, message = FALSE, warning = FALSE}
+SSI <- crop(Seamask, c(450000, 750000, -600000, -100000))
+
+# convert to dataframe for use with ggplot2
+SSI@data$id = rownames(SSI@data)
+SSI.points = fortify(SSI, region="id")
+SSI.df = plyr::join(SSI.points, SSI@data, by="id")
+
+# NB all the polygons for the islands have hole == TRUE, so I am filtering for these.
+# the polygon for the sea has hole == FALSE, so I don't need to plot that.
+SSI.df %>% dplyr::filter(hole == TRUE) %>% 
+  ggplot(aes(x = long, y = lat, group = group)) + 
+  geom_polygon(fill="grey") +
+  geom_path(color="grey") +
+  coord_equal() +
+  theme_bw() +
+  xlim(450000, 750000) +
+  ylim(-600000, -100000) +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "aliceblue"))
+
 ```
 
 Check the projection
@@ -85,7 +106,25 @@ crs(SSI)
 Re-project to Lambert Azimuthal Equal Area
 ```{r}
 SSI_laea<-spTransform(SSI, CRS=CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
-plot(SSI_laea, axes = T)
+
+# convert to dataframe for use with ggplot2
+SSI_laea@data$id = rownames(SSI_laea@data)
+SSI_laea.points = fortify(SSI_laea, region="id")
+SSI_laea.df = plyr::join(SSI_laea.points, SSI_laea@data, by="id")
+
+# filter out only the polygons for the islands
+SSI_laea.df <- SSI_laea.df %>% filter(hole == TRUE)
+
+
+SSI_laea.df %>% 
+  ggplot(aes(x = long, y = lat, group = group)) + 
+  geom_polygon(fill="grey") +
+  geom_path(color="grey") +
+  coord_equal() +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "aliceblue"))
 ```
 
 
@@ -102,7 +141,7 @@ We'll start with ```196697``` and select the data for that individual.
 penguin <- "196697"
 
 x1 <- clean %>%
-  filter(Ptt == penguin)
+  dplyr::filter(Ptt == penguin)
 
 kable(head(x1))
 ```
@@ -112,7 +151,7 @@ kable(head(x1))
 View a summary of the error classes:
 ```{r}
 x1 %>% 
-  group_by(Argos_loc_class) %>% 
+  dplyr::group_by(Argos_loc_class) %>% 
   count() %>% 
   kable()
 ```
@@ -165,10 +204,22 @@ Then we reproject it to laea. This is just centered on the long and lat of Saund
 x1 <- spTransform(x1, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 ```
 
-We can now plot it with our laea projection of the islands (this looks terrible, but I'll fix it later). Note, ggplot2 can **only** plot dataframes, not `SpatialPointsDataFrames` or `SpatialPolygonsDataFrames`, which is what we have for `x1` and `SSI_laea`, respectively.
+We can now plot it with our laea projection of the islands. We have to convert the `SpatialPointsDataFrame` to a regular dataframe, `x1.df` before plotting.
 ```{r}
-plot(x1, axes=T)
-plot(SSI_laea, add=T)
+x1.df <- data.frame(x1)
+
+ggplot() + 
+  geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey80") +
+  geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey80") +
+  coord_equal() +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "aliceblue")) +
+  geom_point(data = x1.df, aes(x = LON, y = LAT), colour = "orange")
+  
+  
+
 
 ```
 
@@ -212,8 +263,8 @@ Note that the guide used to suggest a standard deviation of 2 for the beta prior
 
 ## Run crawl
 
-First remove and results from previous runs, then run it, saving the results to `fit1`. Note that I am caching the results from this section of code so that crawl is not re-run everytime I knit the document.
-```{r, cache = TRUE}
+First remove any results from previous runs, then run it, saving the results to `fit1`. Note that I am caching the results from this section of code so that crawl is not re-run everytime I knit the document.
+```{r, cache = TRUE, message = FALSE}
 if(exists("fit")){rm(fit)} 
 
 fit1 <- crwMLE( 
@@ -252,7 +303,7 @@ par(mfrow=c(1,1))
 
 # get the original data for this penguin
 x3 <- clean %>%
-  filter(Ptt == penguin)
+  dplyr::filter(Ptt == penguin)
 
 # project to LAEA
 coordinates(x3) <- ~LON + LAT 
@@ -263,19 +314,324 @@ x3 <- spTransform(x3, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 x3 <- coordinates(x3) %>% 
   as.data.frame()
 
-ggplot() +
-  geom_point(data = x3, aes(x = LON, y = LAT), colour = "red") +
-  geom_path(data = predObj, aes(x = mu.x, y = mu.y)) 
+#
+colors <- c("Raw points" = "orangered", "McConnel speed filtered points" = "orange")
+
+
+# plot
+ggplot() + 
+  geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
+  geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
+  coord_equal() +
+  geom_point(data = x3, aes(x = LON, y = LAT, colour = "Raw points") ) +
+  geom_point(data = x1.df, aes(x = LON, y = LAT, colour = "McConnel speed filtered points")) +
+  geom_path(data = predObj, aes(x = mu.x, y = mu.y)) +
+  scale_color_manual(values = colors) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "aliceblue"),
+        legend.title = element_blank()) 
 
 ```
 
-It doesn't look like it is doing anything crazy.  
-Still need to figure out how to plot the map from the SpatialPolygonsDataFrame.
-Also, wrap everything up into functions so that I can repeat this easily for other penguins.
+It doesn't look like it is doing anything crazy in this one, but sometimes it goes very loopy, so watch out for that.  
+
+## Add absolute times for the predicted positions back to the dataframe ```predObj```
+
+```{r}
+predObj$Time_absolute <- as.POSIXct(3600 * (predObj$Time_since ), origin = min(raw$Time), tz="UTC") 
+
+```
+
+## Write the predicted positions to csv for use later
+
+```{r}
+write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+
+```
+
+
+# Run for the other penguins in the dataset
+
+## Create functions for the different steps
+I am going to define functions to select and clean the data, and plot it, to reduce the amount of code that I have to re-write.
+
+```{r}
+# define the function for selecting the data for one penguin and applying to McConnel speed filter
+filter_points <-  function(penguin) {
+  # select the data for the penguin
+  x1 <- clean %>% dplyr::filter(Ptt == penguin)
+  # order error classes
+  x1$Argos_loc_class <- factor(x1$Argos_loc_class,  
+                             levels=c("3","2","1","0", "A","B"))
+  # adjust duplicate times
+  x1$Time <- adjust.duplicateTimes(x1$Time, x1$Ptt)
+  # select just the latitude, longitude, time and id columns
+  x2 <- x1 %>% dplyr::select(LAT, LON, Time, Ptt)
+  # make it spatial
+  coordinates(x2) <- c("LON","LAT")
+  # apply McConnel speed filter
+  x2$Pass_speed <- x2 %>% 
+    trip(., TORnames = c("Time","Ptt")) %>% 
+    speedfilter(., max.speed = 8) 
+  # filter the original data for the points that pass the speed filter
+  x1 <- x1 %>% dplyr::filter(x2$Pass_speed == TRUE)
+  # make the points spatial
+  coordinates(x1) <- ~LON + LAT
+  # give it a projection
+  proj4string(x1) <- CRS("+proj=longlat +ellps=WGS84")
+  # transform to LAEA centered around the south sandwich islands
+  x1 <- spTransform(x1, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+}
+
+
+# define a function for plotting the cleaned data to check that it looks ok
+plot_cleaned_points <- function(x) {
+  ggplot() + 
+    geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey80") +
+    geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey80") +
+    coord_equal() +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill = "aliceblue")) +
+    geom_point(data = x, aes(x = LON, y = LAT), colour = "orange")
+}  
+
+
+# define a function for crawling
+crawl <- function(x1) {
+  if(exists("fit")){rm(fit)} 
+  fit1 <- crwMLE( 
+    mov.model = ~1, 
+    err.model=list(x=~Argos_loc_class-1), 
+    drift=T, 
+    data=x1, 
+    Time.name="Time_since",  
+    initial.state=initial, 
+    prior=prior, 
+    control=list(trace=1, REPORT=1)) 
+}
+
+# function for creating times where points will be predicted
+predict_times <- function(x) {
+  seq(min(x$Time_since), max(x$Time_since), 1/12)
+}
+
+# define a function for predicting points every 5 minutes, based on the crawled data
+predict_points <- function(x, y) {
+  crwPredict(object.crwFit = x, predTime = y, speedEst = TRUE, flat=TRUE)
+}
+  
+
+# define a function for plotting the results of the crawled tracks against the original points
+plot_crawled_track <- function() {
+  # get the original data
+  x3 <- clean %>% dplyr::filter(Ptt == penguin)
+  # project original data to LAEA
+  coordinates(x3) <- ~LON + LAT 
+  proj4string(x3) <- CRS("+proj=longlat +ellps=WGS84")
+  x3 <- spTransform(x3, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+  # get just the coordinates from x3 and make a dataframe for plotting
+  x3 <- coordinates(x3) %>% as.data.frame()
+  # define the colour scheme
+  colors <- c("Raw points" = "orangered", "McConnel speed filtered points" = "orange")
+  # plot
+  ggplot() + 
+    geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
+    geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
+    coord_equal() +
+    geom_point(data = x3, aes(x = LON, y = LAT, colour = "Raw points") ) +
+    geom_point(data = x1.df, aes(x = LON, y = LAT, colour = "McConnel speed filtered points")) +
+    geom_path(data = predObj, aes(x = mu.x, y = mu.y)) +
+    scale_color_manual(values = colors) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill = "aliceblue"),
+          legend.title = element_blank()) 
+}
+
+# zoom in on Saunders Island only
+plot_crawled_track_Saunders <- function() {
+  # get the original data
+  x3 <- clean %>% dplyr::filter(Ptt == penguin)
+  # project original data to LAEA
+  coordinates(x3) <- ~LON + LAT 
+  proj4string(x3) <- CRS("+proj=longlat +ellps=WGS84")
+  x3 <- spTransform(x3, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+  # get just the coordinates from x3 and make a dataframe for plotting
+  x3 <- coordinates(x3) %>% as.data.frame()
+  # define the colour scheme
+  colors <- c("Raw points" = "orangered", "McConnel speed filtered points" = "orange")
+  # plot
+  ggplot() + 
+    geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
+    geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
+    coord_equal() +
+    geom_point(data = x3, aes(x = LON, y = LAT, colour = "Raw points") ) +
+    geom_point(data = x1.df, aes(x = LON, y = LAT, colour = "McConnel speed filtered points")) +
+    geom_path(data = predObj, aes(x = mu.x, y = mu.y)) +
+    scale_color_manual(values = colors) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill = "aliceblue"),
+          legend.title = element_blank()) +
+    coord_cartesian(xlim = c(-50000, 75000),
+                    ylim = c(-50000, 75000))
+
+}
+
+
+```
+
+## Ptt 196698
+```{r}
+penguin <- "196698"
+x1 <- filter_points(penguin)
+# convert to dataframe for plotting
+x1.df <- data.frame(x1)
+plot_cleaned_points(x1.df)
+
+```
+
+ For this penguin, the first fix is funky. The code below removes it from the dataframe ```x1.df``` and then converts this back to a SpatialPointsDataFrame. I couldn't get the subsetting on the SPDF ```x1``` to work, so this is a roundabout solution...
+ 
+
+```{r}
+x1.df <- x1.df %>% dplyr::filter(LON < 2000000)
+plot_cleaned_points(x1.df)
+
+# then make x1.df spatial 
+coordinates(x1.df) <- ~LON + LAT
+# tell it it's already projected in LAEA centered around the south sandwich islands
+proj4string(x1.df) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+# transform to LAEA centered around the south sandwich islands
+x1.df <- spTransform(x1.df, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+
+# rename back to x1 so that I can continue with the code below
+x1 <- x1.df
+
+# then recreate x1.df as a normal data frame
+x1.df <- data.frame(x1)
+
+```
+ 
+ 
+Next we apply the ```crwMLE()``` function to the spatial object ```x1```. Run this multiple times until you don't get any ```NaN```s.
+ 
+```{r, cache = TRUE, message = FALSE}
+fit1 <- crawl(x1)
+print(fit1)
+```
+This was the best I could do for this penguin.  
+
+Predict points and plot the crawled track.
+```{r}
+predTime <- predict_times(x1)
+predObj <- predict_points(fit1, predTime)
+
+plot_crawled_track()
+```
+
+Zoom in on Saunders Island to check the tracks around there. I think this looks ok.
+
+```{r}
+plot_crawled_track_Saunders()
+```
+
+Write to CSV:
+```{r}
+write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+```
+
+
+## Ptt 196699
+```{r}
+penguin <- "196699"
+x1 <- filter_points(penguin)
+# convert to dataframe for plotting
+x1.df <- data.frame(x1)
+plot_cleaned_points(x1.df)
+
+```
+Crawl (ran many times)
+```{r, cache = TRUE, message = FALSE}
+fit1 <- crawl(x1)
+print(fit1)
+
+predTime <- predict_times(x1)
+predObj <- predict_points(fit1, predTime)
+
+plot_crawled_track()
+
+plot_crawled_track_Saunders()
+```
+
+Write to CSV:
+```{r}
+write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+```
+
+## Ptt 196700
+```{r}
+penguin <- "196700"
+x1 <- filter_points(penguin)
+# convert to dataframe for plotting
+x1.df <- data.frame(x1)
+plot_cleaned_points(x1.df)
+
+```
+
+
+Get rid of that weird fix.
+```{r}
+x1.df <- x1.df %>% dplyr::filter(LON > -500000)
+plot_cleaned_points(x1.df)
+
+# then make x1.df spatial 
+coordinates(x1.df) <- ~LON + LAT
+# tell it it's already projected in LAEA centered around the south sandwich islands
+proj4string(x1.df) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+# transform to LAEA centered around the south sandwich islands
+x1.df <- spTransform(x1.df, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+
+# rename back to x1 so that I can continue with the code below
+x1 <- x1.df
+
+# then recreate x1.df as a normal data frame
+x1.df <- data.frame(x1)
+
+```
+
+
+Crawl (ran many times).
+
+```{r, cache= TRUE}
+fit1 <- crawl(x1)
+print(fit1)
+
+predTime <- predict_times(x1)
+predObj <- predict_points(fit1, predTime)
+
+plot_crawled_track()
+
+plot_crawled_track_Saunders()
+```
+
+**There seem to be a lot of points lost due to the speed filter on this penguin. Should I re-run with a more lenient filter?** 
+
+
+Write to CSV:
+```{r}
+write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+```
 
 
 ## Questions to ask
 
-1. Are the times in UTC? Should I convert them to local times so that we can calculate proportion of day or night spent foraging?
-2. What are the units of the speed filter - is it km/hr? What is the justification for setting it to 8?
+1. Are the times that we get from the trackers in UTC? Should I convert them to local times so that we can calculate proportion of day or night spent foraging?
+2. What are the units of the speed filter - is it km/hr? I don't remember what the justification was for setting it to 8...
 3. 
