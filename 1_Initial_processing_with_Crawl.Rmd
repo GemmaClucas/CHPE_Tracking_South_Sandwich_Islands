@@ -265,7 +265,7 @@ Note that the guide used to suggest a standard deviation of 2 for the beta prior
 
 ## Run crawl (many times)
 
-First remove any results from previous runs, then run it, saving the results to `fit1`. Note that I am caching the results from this section of code so that crawl is not re-run everytime I knit the document.
+First remove any results from previous runs, then run it, saving the results to `fit1`. Note that I am caching the results from this section of code so that crawl is not re-run everytime I knit the document. **EDIT: the caching is broken, so ignore the results from this section. I ran it until I got no NAs and the tracks looked good before I saved the result.**
 ```{r crawl_196697, cache = TRUE, message = FALSE}
 if(exists("fit1")){rm(fit1)} 
 
@@ -337,7 +337,6 @@ ggplot() +
 
 ```
 
-It doesn't look like it is doing anything crazy in this one, but sometimes it goes very loopy, so watch out for that.  
 
 ## Add absolute times for the predicted positions back to the dataframe ```predObj```
 
@@ -347,9 +346,10 @@ predObj$Time_absolute <- as.POSIXct(3600 * (predObj$Time_since ), origin = min(r
 ```
 
 ## Write the predicted positions to csv for use later
+Commented out so that I don't overwrite the results that I want to keep each time I knit the doc.
 
 ```{r}
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 
 ```
 
@@ -516,7 +516,7 @@ plot_cleaned_points(x1.df)
 
 ```
 
- For this penguin, the first fix is funky. The code below removes it from the dataframe ```x1.df``` and then converts this back to a SpatialPointsDataFrame. I couldn't get the subsetting on the SPDF ```x1``` to work, so this is a roundabout solution...
+For this penguin, the first fix is funky. The code below removes it from the dataframe ```x1.df``` and then converts this back to a SpatialPointsDataFrame. I couldn't get the subsetting on the SPDF ```x1``` to work, so this is a roundabout solution...
  
 
 ```{r}
@@ -545,7 +545,7 @@ Next we apply the ```crwMLE()``` function to the spatial object ```x1```. Run th
 fit1 <- crawl(x1)
 print(fit1)
 ```
-This was the best I could do for this penguin.  
+Again, caching is broken, so ignore these results.  
 
 Predict points and plot the crawled track.
 ```{r}
@@ -563,7 +563,7 @@ plot_crawled_track_Saunders()
 
 Write to CSV:
 ```{r}
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 ```
 
 
@@ -591,7 +591,7 @@ plot_crawled_track_Saunders()
 
 Write to CSV:
 ```{r}
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 ```
 
 ## Ptt 196700
@@ -634,7 +634,6 @@ fit1 <- crawl(x1)
 print(fit1)
 ```
 
-This was the best I could get, but the tracks look ok below
 
 ```{r}
 predTime <- predict_times(x1)
@@ -650,7 +649,7 @@ plot_crawled_track_Saunders()
 
 Write to CSV:
 ```{r}
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 ```
 
 

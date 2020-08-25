@@ -227,7 +227,7 @@ plot_crawled_track_Saunders <- function() {
 
 
 ```{r}
-penguin <- "196716"
+penguin <- "196704"
 x1 <- filter_points(penguin)
 # convert to dataframe for plotting
 x1.df <- data.frame(x1)

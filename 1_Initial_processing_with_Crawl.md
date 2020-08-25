@@ -360,6 +360,9 @@ documentation.
 First remove any results from previous runs, then run it, saving the
 results to `fit1`. Note that I am caching the results from this section
 of code so that crawl is not re-run everytime I knit the document.
+**EDIT: the caching is broken, so ignore the results from this section.
+I ran it until I got no NAs and the tracks looked good before I saved
+the result.**
 
 ``` r
 if(exists("fit1")){rm(fit1)} 
@@ -735,10 +738,6 @@ ggplot() +
 
 ![](1_Initial_processing_with_Crawl_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
-It doesn’t look like it is doing anything crazy in this one, but
-sometimes it goes very loopy, so watch out for
-that.
-
 ## Add absolute times for the predicted positions back to the dataframe `predObj`
 
 ``` r
@@ -747,8 +746,12 @@ predObj$Time_absolute <- as.POSIXct(3600 * (predObj$Time_since ), origin = min(r
 
 ## Write the predicted positions to csv for use later
 
+Commented out so that I don’t overwrite the results that I want to keep
+each time I knit the
+doc.
+
 ``` r
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 ```
 
 # Run for the other penguins in the dataset - except caching the results isn’t working so the crawled tracks look hideous
@@ -1242,7 +1245,7 @@ print(fit1)
     ## Log Likelihood = -19732.403 
     ## AIC = 39484.806
 
-This was the best I could do for this penguin.
+Again, caching is broken, so ignore these results.
 
 Predict points and plot the crawled track.
 
@@ -1271,7 +1274,7 @@ Write to
 CSV:
 
 ``` r
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 ```
 
 ## Ptt 196699
@@ -1602,7 +1605,7 @@ Write to
 CSV:
 
 ``` r
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 ```
 
 ## Ptt 196700
@@ -1942,8 +1945,6 @@ print(fit1)
     ## Log Likelihood = -3678.985 
     ## AIC = 7377.969
 
-This was the best I could get, but the tracks look ok below
-
 ``` r
 predTime <- predict_times(x1)
 predObj <- predict_points(fit1, predTime)
@@ -1968,7 +1969,7 @@ Write to
 CSV:
 
 ``` r
-write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
+#write.csv(predObj, paste0("predicted_tracks/", penguin, "_track.csv", sep = ""), row.names = FALSE)
 ```
 
 ## Questions to ask
