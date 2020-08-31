@@ -97,7 +97,7 @@ filter_points <-  function(penguin) {
   # apply McConnel speed filter
   x2$Pass_speed <- x2 %>% 
     trip(., TORnames = c("Time","Ptt")) %>% 
-    speedfilter(., max.speed = 8) 
+    speedfilter(., max.speed = 16) 
   # filter the original data for the points that pass the speed filter
   x1 <- x1 %>% dplyr::filter(x2$Pass_speed == TRUE)
   # make the points spatial
@@ -110,7 +110,7 @@ filter_points <-  function(penguin) {
 
 
 # define a function for plotting the cleaned data to check that it looks ok
-plot_cleaned_points <- function(x) {
+plot_cleaned_points <- function(z) {
   ggplot() + 
     geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey80") +
     geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey80") +
@@ -119,7 +119,7 @@ plot_cleaned_points <- function(x) {
     theme(panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue")) +
-    geom_point(data = x, aes(x = LON, y = LAT), colour = "orange")
+    geom_point(data = z, aes(x = LON, y = LAT), colour = "orange")
 }  
 
 # define the prior for crawl
@@ -161,8 +161,8 @@ predict_times <- function(x) {
 predict_points <- function(x, y) {
   crwPredict(object.crwFit = x, predTime = y, speedEst = TRUE, flat=TRUE)
 }
-  
 
+  
 # define a function for plotting the results of the crawled tracks against the original points
 plot_crawled_track <- function() {
   # get the original data
@@ -227,7 +227,7 @@ plot_crawled_track_Saunders <- function() {
 
 
 ```{r}
-penguin <- "196704"
+penguin <- "196716"
 x1 <- filter_points(penguin)
 # convert to dataframe for plotting
 x1.df <- data.frame(x1)
@@ -271,6 +271,9 @@ There might be NAs in here because it reruns crawl everytime I knit the doc. I r
 ```{r}
 predTime <- predict_times(x1)
 predObj <- predict_points(fit1, predTime)
+# add absolute times back to the dataframe
+predObj$Time_absolute <- as.POSIXct(3600 * (predObj$Time_since ), origin = min(raw$Time), tz="UTC") 
+
 
 plot_crawled_track()
 plot_crawled_track_Saunders()
