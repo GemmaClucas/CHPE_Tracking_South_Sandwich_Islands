@@ -169,19 +169,6 @@ Plot
 ```{r}
 plot_track(track)
 ```
-```{r}
-# make the track spatial points df
-  coordinates(track) <- ~LON + LAT
-  # tell it that it's projected in LAEA
-  proj4string(track) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
-  # add new column to track object identifying whether the track is off the island
-  track$off_island <- !is.na(over(track, SSI_laea_buffer))
-  # filter the points for just those that are off the island
-  track %>% 
-    filter(off_island == TRUE)
-```
-
-
 
 
 Remove points on land
@@ -195,6 +182,7 @@ at_sea %>%
     #coord_fixed(ratio = 1, xlim = c(-45000, 15000), ylim = c(-10000, 60000), expand = TRUE, clip = "on")
 ```
 
+**Something is going wrong here and I can't work out what. It seems like when the track crosses (100000, -200000) it gets cropped, why?**
 
 
 Split into trips using time stamps
@@ -258,8 +246,9 @@ tail(at_sea)
 
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
 ```
+**Again the final long trip is getting cropped, also when it passes 100000. Why?**
 
-Make a function for plotting the trips
+Plot each trip.
 ```{r, message=FALSE}
 
 seq <- c(1:(length(Start_row_indexes) -1))
@@ -273,6 +262,6 @@ invisible(lapply(plots, print))
 #    plots[[9]] + plots[[10]] + plots[[11]] + plots[[12]] 
 ```
 
-Why are the ends of my trips being cut?
+Why are the ends of my trips being cut? something is happening at -200000, -100000 I think.
 
 It would be good to print the start date and time of the trip, and the duration, onto each graph to see whether they make sense.
