@@ -23,6 +23,8 @@ options(scipen=999)
 
 For a fully annotated version of this code, look at ```1_Initial_Processing_with_Crawl.Rmd```. I ran through this quickly for each penguin, saving the predicted positions to excel files in the ```predicted_tracks/``` folder and figures of the crawled paths in there too.
 
+Note that I am setting the maximum speed for the McConnell speed filter to 12 kph. According to Culick et al (1994), the preferred swimming speeds of chinstrap penguins are 2.4 m/s, which is 8.6 kph. Allowing for a speed up to 12 kph therefore seems reasonable.
+
 ## Load data
 
 This is the data that Claudia sent over on 30th June 2020. 
@@ -97,7 +99,7 @@ filter_points <-  function(penguin) {
   # apply McConnel speed filter
   x2$Pass_speed <- x2 %>% 
     trip(., TORnames = c("Time","Ptt")) %>% 
-    speedfilter(., max.speed = 16) 
+    speedfilter(., max.speed = 12) 
   # filter the original data for the points that pass the speed filter
   x1 <- x1 %>% dplyr::filter(x2$Pass_speed == TRUE)
   # make the points spatial
@@ -152,7 +154,7 @@ crawl <- function(x1) {
     control=list(trace=1, REPORT=1)) 
 }
 
-# function for creating times where points will be predicted
+# function for creating times where points will be predicted every 5 minutes
 predict_times <- function(x) {
   seq(min(x$Time_since), max(x$Time_since), 1/12)
 }
@@ -226,6 +228,7 @@ plot_crawled_track_Saunders <- function() {
 ```
 
 
+
 ```{r}
 penguin <- "196716"
 x1 <- filter_points(penguin)
@@ -239,21 +242,21 @@ plot_cleaned_points(x1.df)
 Use this code in case there are any weird fixes that haven't been removed by speed filter (adjust the LAT or LON in the filter term for use). 
 
 ```{r}
-x1.df <- x1.df %>% dplyr::filter(LAT < 100000)
-plot_cleaned_points(x1.df)
-
-# then make x1.df spatial 
-coordinates(x1.df) <- ~LON + LAT
-# tell it it's already projected in LAEA centered around the south sandwich islands
-proj4string(x1.df) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
-# transform to LAEA centered around the south sandwich islands
-x1.df <- spTransform(x1.df, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
-
-# rename back to x1 so that I can continue with the code below
-x1 <- x1.df
-
-# then recreate x1.df as a normal data frame
-x1.df <- data.frame(x1)
+# x1.df <- x1.df %>% dplyr::filter(LAT < 100000)
+# plot_cleaned_points(x1.df)
+# 
+# # then make x1.df spatial
+# coordinates(x1.df) <- ~LON + LAT
+# # tell it it's already projected in LAEA centered around the south sandwich islands
+# proj4string(x1.df) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+# # transform to LAEA centered around the south sandwich islands
+# x1.df <- spTransform(x1.df, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+# 
+# # rename back to x1 so that I can continue with the code below
+# x1 <- x1.df
+# 
+# # then recreate x1.df as a normal data frame
+# x1.df <- data.frame(x1)
 
 ```
 
