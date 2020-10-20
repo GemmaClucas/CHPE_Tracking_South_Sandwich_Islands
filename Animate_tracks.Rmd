@@ -13,8 +13,7 @@ library(raster)
 library(ggplot2)
 library(tidyverse)
 library(trip)
-library(rgeos)
-
+library(xts)
 ```
 
 ## Example data 
@@ -38,18 +37,44 @@ library(rgeos)
 
 Load crawled track.
 ```{r}
-predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALSE) 
+# predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALSE) 
 
-track <- predObj %>%
+tbl <-
+    list.files(path = "predicted_tracks", pattern = "*.csv") %>% 
+    map_df(~read_csv(paste0("predicted_tracks/", .)))
+
+# track <- predObj %>%
+#   dplyr::filter(locType == "p") %>%                                   # select only predicted positions
+#   dplyr::select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%       # select only useful colums
+#   rename(LON = mu.x, LAT = mu.y) %>%                                 # rename columns for ease of use
+#   mutate(time = as.POSIXct(Time_absolute, tz = "UTC"))               # make sure times are in POSIXct
+
+track <- tbl %>%
   dplyr::filter(locType == "p") %>%                                   # select only predicted positions
   dplyr::select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%       # select only useful colums
   rename(LON = mu.x, LAT = mu.y) %>%                                 # rename columns for ease of use
   mutate(time = as.POSIXct(Time_absolute, tz = "UTC"))               # make sure times are in POSIXct
 
+# function for adjusting times to make them all unique
+make_unique <- function(x) {
+  xts::make.time.unique(x$Time_absolute, eps = 5)
+}
+
+# apply function
+track <- track %>% 
+  dplyr::arrange(time, Ptt) %>%                             # order by time, then ID
+  dplyr::group_by(time) %>% tidyr::nest() %>%               # nesting makes a list of tibbles containing data for each time stamp
+  dplyr::mutate(unique_time = purrr::map(data, make_unique)) %>%      # apply function and save results in new column 'unique_time'
+  tidyr::unnest_legacy() %>%                                # this is much faster than unnest() and restores the dataframe
+  dplyr::select(-Time_absolute) %>% 
+  dplyr::arrange(Ptt, time)
+
+
 # change to move object
 track.move <- track %>% 
-  df2move(., proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"), x = "LON", y = "LAT", time = "time")
+  df2move(., proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"), x = "LON", y = "LAT", time = "unique_time")
 
+# track %>% filter(time == "2020-01-06 16:53:00 UTC")
 ```
 
 Change the projection to ```WGS 84/EPSG:4326``` so that the axes on the graph are in lat/long. Note that when you create the frames with the ```frames_spatial()``` function, you need to add ```equidistant = F``` to disable this feature.
@@ -65,10 +90,11 @@ So for now, I'm keeping the projection as is.
 
 
 Align the timestaps among tracks and down-sample to taking a position every 4 hours (240 mins) to reduce the number of frames in the final animation, as it is very slow to make it.
+
+THIS ISN'T WORKING, I THINK THERE IS A FUNKY FIX IN THERE IF YOU LOOK AT ```summary(track.move@data$y)```
 ```{r}
 # align the time stamps (only need to do when plotting more than one individual)
 track.move <- align_move(track.move, res = 240, unit = "mins")
-
 ```
 
 Create a buffer around the islands showing the current and proposed extent of the no take zones
