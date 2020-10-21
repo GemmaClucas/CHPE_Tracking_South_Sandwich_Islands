@@ -92,20 +92,22 @@ So for now, I'm keeping the projection as is.
 
 ```{r}
 track.move <- sp::spTransform(track.move, crs("+init=epsg:4326"))
+
+track.move.laea <- sp::spTransform(track.move, crs("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 ```
 
 
 
 Align the timestaps among tracks and down-sample to taking a position every 4 hours (240 mins) to reduce the number of frames in the final animation, as it is very slow to make it.
 
-THIS ISN'T WORKING, I THINK THERE IS A FUNKY FIX IN THERE IF YOU LOOK AT ```summary(track.move@data$y)```
+Note: The ```align_move()``` wasn't working until I projected to mercator and back to LAEA... no idea why.
 ```{r}
 # align the time stamps (only need to do when plotting more than one individual)
 track.move <- align_move(track.move, res = 240, unit = "mins")
 
 ```
 
-Create a buffer around the islands showing the current and proposed extent of the no take zones
+Create a buffer around the islands showing the current and proposed extent of the no take zones.
 ```{r}
 # Center of islands - Saunders
 b <- data.frame(lat = c(-57.795354), lon = c(-26.465941))
@@ -155,11 +157,13 @@ frames <- frames_spatial(track.move,
 #                                     colour = "black",
 #                                     linetype = "dashed")))
 
-# Have a look at a couple of frames
-frames[[111]]
+
+
+# To look at frames individually
+frames[[1]]
 frames[[150]]
 
-animate_frames(frames, out_file = "AllPtt_LonLAT.gif", overwrite = TRUE)
+animate_frames(frames, out_file = "AllPtt_LonLAT_res120.gif", overwrite = TRUE)
 
 ```
 
