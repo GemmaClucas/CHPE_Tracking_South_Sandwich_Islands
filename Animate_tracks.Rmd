@@ -14,6 +14,8 @@ library(ggplot2)
 library(tidyverse)
 library(trip)
 library(xts)
+library(rgeos)
+library(viridis)
 ```
 
 ## Example data 
@@ -72,9 +74,14 @@ track <- track %>%
 
 # change to move object
 track.move <- track %>% 
-  df2move(., proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"), x = "LON", y = "LAT", time = "unique_time")
+  df2move(., 
+          proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"), 
+          x = "LON", 
+          y = "LAT", 
+          time = "unique_time",
+          track_id = "Ptt")
 
-# track %>% filter(time == "2020-01-06 16:53:00 UTC")
+
 ```
 
 Change the projection to ```WGS 84/EPSG:4326``` so that the axes on the graph are in lat/long. Note that when you create the frames with the ```frames_spatial()``` function, you need to add ```equidistant = F``` to disable this feature.
@@ -84,7 +91,7 @@ I actually need a projection that is not in degrees, in order to be able to draw
 So for now, I'm keeping the projection as is.
 
 ```{r}
-#track.move <- sp::spTransform(track.move, crs("+init=epsg:4326"))
+track.move <- sp::spTransform(track.move, crs("+init=epsg:4326"))
 ```
 
 
@@ -95,6 +102,7 @@ THIS ISN'T WORKING, I THINK THERE IS A FUNKY FIX IN THERE IF YOU LOOK AT ```summ
 ```{r}
 # align the time stamps (only need to do when plotting more than one individual)
 track.move <- align_move(track.move, res = 240, unit = "mins")
+
 ```
 
 Create a buffer around the islands showing the current and proposed extent of the no take zones
@@ -107,11 +115,17 @@ coordinates(b) <- ~ lon + lat
 projection(b) <- "+init=epsg:4326"
 
 # Reproject to tracking data projection i.e. Lambert's azimuthal equal area
-b_laea <- spTransform(b, CRS = CRS(projection(track.move)))
+# b_laea <- spTransform(b, CRS = CRS(projection(track.move)))
 
 # Create buffers around the island
-b_laea_22km <- gBuffer(b_laea, width = 22200)     # 12nm is 22.2 km
-b_laea_50km <- gBuffer(b_laea, width = 50000)     # 50km is the proposed extent
+# b_laea_22km <- gBuffer(b_laea, width = 22200)     # 12nm is 22.2 km
+# b_laea_50km <- gBuffer(b_laea, width = 50000)     # 50km is the proposed extent
+
+# Create buffers around the island
+b_22km <- gBuffer(b, width = 22200)     # 12nm is 22.2 km
+b_50km <- gBuffer(b, width = 50000)     # 50km is the proposed extent
+
+
 
 ```
 
@@ -119,6 +133,7 @@ Create the frames using the ```frames_spatial``` function and then add the buffe
 
 ```{r}
 frames <- frames_spatial(track.move, 
+                         path_colours = viridis(20),
                          map_service = "carto", 
                          map_type = "light", 
                          alpha = 0.5, 
@@ -127,24 +142,24 @@ frames <- frames_spatial(track.move,
   add_scalebar(colour = "black", position = "bottomright", label_margin = 1, units = "km", distance = 100) %>%
   add_timestamps(track.move, type = "label")
 
-frames = add_gg(frames, 
-                gg = expr(geom_path(data = b_laea_22km,
-                                    aes(x = b_laea_22km@polygons[[1]]@Polygons[[1]]@coords[,1], 
-                                        y = b_laea_22km@polygons[[1]]@Polygons[[1]]@coords[,2]), 
-                                    colour = "black")))
+# frames = add_gg(frames, 
+#                 gg = expr(geom_path(data = b_laea_22km,
+#                                     aes(x = b_laea_22km@polygons[[1]]@Polygons[[1]]@coords[,1], 
+#                                         y = b_laea_22km@polygons[[1]]@Polygons[[1]]@coords[,2]), 
+#                                     colour = "black")))
 
-frames = add_gg(frames, 
-                gg = expr(geom_path(data = b_laea_50km,
-                                    aes(x = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,1], 
-                                        y = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,2]), 
-                                    colour = "black",
-                                    linetype = "dashed")))
+# frames = add_gg(frames, 
+#                 gg = expr(geom_path(data = b_laea_50km,
+#                                     aes(x = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,1], 
+#                                         y = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,2]), 
+#                                     colour = "black",
+#                                     linetype = "dashed")))
 
 # Have a look at a couple of frames
 frames[[111]]
 frames[[150]]
 
-animate_frames(frames, out_file = "example.gif", overwrite = TRUE)
+animate_frames(frames, out_file = "AllPtt_LonLAT.gif", overwrite = TRUE)
 
 ```
 
