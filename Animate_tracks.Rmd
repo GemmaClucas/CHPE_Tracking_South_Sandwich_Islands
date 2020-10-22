@@ -16,6 +16,9 @@ library(trip)
 library(xts)
 library(rgeos)
 library(viridis)
+library(maptools)
+library(ggspatial)
+library(mapproj)
 ```
 
 ## Example data 
@@ -38,26 +41,31 @@ library(viridis)
 ## My data
 
 Load crawled track.
-```{r}
+```{r, message=FALSE}
+
+# read in one track 
 # predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALSE) 
 
-tbl <-
-    list.files(path = "predicted_tracks", pattern = "*.csv") %>% 
-    map_df(~read_csv(paste0("predicted_tracks/", .)))
-
+# format
 # track <- predObj %>%
 #   dplyr::filter(locType == "p") %>%                                   # select only predicted positions
 #   dplyr::select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%       # select only useful colums
 #   rename(LON = mu.x, LAT = mu.y) %>%                                 # rename columns for ease of use
 #   mutate(time = as.POSIXct(Time_absolute, tz = "UTC"))               # make sure times are in POSIXct
 
+# read in all tracks at once into tibble
+tbl <-
+    list.files(path = "predicted_tracks", pattern = "*.csv") %>% 
+    map_df(~read_csv(paste0("predicted_tracks/", .)))
+
+# do some formatting
 track <- tbl %>%
   dplyr::filter(locType == "p") %>%                                   # select only predicted positions
   dplyr::select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%       # select only useful colums
   rename(LON = mu.x, LAT = mu.y) %>%                                 # rename columns for ease of use
   mutate(time = as.POSIXct(Time_absolute, tz = "UTC"))               # make sure times are in POSIXct
 
-# function for adjusting times to make them all unique
+# function for adjusting times to make them all unique by adjusting by 5 seconds
 make_unique <- function(x) {
   xts::make.time.unique(x$Time_absolute, eps = 5)
 }
@@ -72,7 +80,7 @@ track <- track %>%
   dplyr::arrange(Ptt, time)
 
 
-# change to move object
+# change to move object and supply the LAEA projection
 track.move <- track %>% 
   df2move(., 
           proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"), 
@@ -88,44 +96,67 @@ Change the projection to ```WGS 84/EPSG:4326``` so that the axes on the graph ar
 
 I actually need a projection that is not in degrees, in order to be able to draw the 12nm buffer around the islands. This is because it is difficult to draw circles in degrees, as they are bigger or smaller depending on where you are on the planet.
 
-So for now, I'm keeping the projection as is.
+BUT I found that the next step, ```align_move()```, doesn't work in the current projection so I'm projecting to mercator and then back to LAEA.
 
 ```{r}
 track.move <- sp::spTransform(track.move, crs("+init=epsg:4326"))
 
-track.move.laea <- sp::spTransform(track.move, crs("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+# track.move <- sp::spTransform(track.move, crs("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 ```
-
 
 
 Align the timestaps among tracks and down-sample to taking a position every 4 hours (240 mins) to reduce the number of frames in the final animation, as it is very slow to make it.
 
-Note: The ```align_move()``` wasn't working until I projected to mercator and back to LAEA... no idea why.
+Note: The ```align_move()``` isn't working when the data is in LAEA... no idea why. So align tracks with mercator projection, then project back to LAEA.
 ```{r}
 # align the time stamps (only need to do when plotting more than one individual)
 track.move <- align_move(track.move, res = 240, unit = "mins")
 
+track.move <- sp::spTransform(track.move, crs("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 ```
 
 Create a buffer around the islands showing the current and proposed extent of the no take zones.
 ```{r}
-# Center of islands - Saunders
-b <- data.frame(lat = c(-57.795354), lon = c(-26.465941))
+# Center of islands 
+b <- data.frame(lat = c(-57.795354, -58.450292, -59.042031, -59.450274, -57.094589), 
+                lon = c(-26.465941, -26.369959, -26.583162, -27.233031, -26.713769), 
+                island = c("Saunders",
+                           "Montagu",
+                           "Bristol",
+                           "Southern Thule",
+                           "Candelmas"))
 
 # Tell it it's spatial and in lat/lon
 coordinates(b) <- ~ lon + lat
 projection(b) <- "+init=epsg:4326"
 
 # Reproject to tracking data projection i.e. Lambert's azimuthal equal area
-# b_laea <- spTransform(b, CRS = CRS(projection(track.move)))
+b_laea <- spTransform(b, CRS = CRS(projection(track.move)))
 
 # Create buffers around the island
-# b_laea_22km <- gBuffer(b_laea, width = 22200)     # 12nm is 22.2 km
-# b_laea_50km <- gBuffer(b_laea, width = 50000)     # 50km is the proposed extent
+b_laea_22km <- gBuffer(b_laea, width = 22200, byid = TRUE)     # 12nm is 22.2 km
+b_laea_50km <- gBuffer(b_laea, width = 50000, byid = TRUE)     # 50km is the proposed extent
+
+
+islands = c("Saunders",
+            "Montagu",
+            "Bristol",
+            "Southern Thule",
+            "Candelmas")
+
+
+# Find the unions of the dataframes
+b_union_22km <- unionSpatialPolygons(b_laea_22km, IDs = islands)
+b_union_50km <- unionSpatialPolygons(b_laea_50km, IDs = islands)
+
+# Transform for plotting
+transformed_22km <- broom::tidy(b_union_22km)
+transformed_50km <- broom::tidy(b_union_50km)
+
 
 # Create buffers around the island
-b_22km <- gBuffer(b, width = 22200)     # 12nm is 22.2 km
-b_50km <- gBuffer(b, width = 50000)     # 50km is the proposed extent
+# b_22km <- gBuffer(b, width = 22200)     # 12nm is 22.2 km
+# b_50km <- gBuffer(b, width = 50000)     # 50km is the proposed extent
 
 
 
@@ -137,24 +168,35 @@ Create the frames using the ```frames_spatial``` function and then add the buffe
 frames <- frames_spatial(track.move, 
                          path_colours = viridis(20),
                          map_service = "carto", 
-                         map_type = "light", 
+                         map_type = "dark", 
                          alpha = 0.5, 
-                         equidistant = F) %>% 
+                         path_legend = FALSE,
+                         equidistant = FALSE) %>% 
   # add_labels(x = "Longitude", y = "Latitude") %>%
   add_scalebar(colour = "black", position = "bottomright", label_margin = 1, units = "km", distance = 100) %>%
   add_timestamps(track.move, type = "label")
 
-# frames = add_gg(frames, 
-#                 gg = expr(geom_path(data = b_laea_22km,
-#                                     aes(x = b_laea_22km@polygons[[1]]@Polygons[[1]]@coords[,1], 
-#                                         y = b_laea_22km@polygons[[1]]@Polygons[[1]]@coords[,2]), 
-#                                     colour = "black")))
 
-# frames = add_gg(frames, 
+#  working
+frames = add_gg(frames,
+                gg = expr(geom_polygon(data = transformed_22km, 
+                                       aes(x = long, y = lat, group = id),
+                                       colour = "grey70", fill = NA)))
+
+frames = add_gg(frames,
+                gg = expr(geom_polygon(data = transformed_50km, 
+                                       aes(x = long, y = lat, group = id),
+                                       colour = "grey90", fill = NA)))
+
+
+
+
+# # This was working when there was just one polygon around Saunders, so don't delete this
+# frames = add_gg(frames,
 #                 gg = expr(geom_path(data = b_laea_50km,
-#                                     aes(x = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,1], 
-#                                         y = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,2]), 
-#                                     colour = "black",
+#                                     aes(x = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,1],
+#                                         y = b_laea_50km@polygons[[1]]@Polygons[[1]]@coords[,2]),
+#                                     colour = "grey",
 #                                     linetype = "dashed")))
 
 
@@ -163,7 +205,11 @@ frames <- frames_spatial(track.move,
 frames[[1]]
 frames[[150]]
 
-animate_frames(frames, out_file = "AllPtt_LonLAT_res120.gif", overwrite = TRUE)
+animate_frames(frames, out_file = "AllPtt_LonLAT_res240_withbuffers.gif", overwrite = TRUE)
 
 ```
+
+
+
+
 
