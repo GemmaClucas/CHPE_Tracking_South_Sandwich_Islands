@@ -40,7 +40,7 @@ library(mapproj)
 
 ## My data
 
-Load crawled track.
+Load crawled tracks.
 ```{r, message=FALSE}
 
 # read in one track 
@@ -92,31 +92,28 @@ track.move <- track %>%
 
 ```
 
-Change the projection to ```WGS 84/EPSG:4326``` so that the axes on the graph are in lat/long. Note that when you create the frames with the ```frames_spatial()``` function, you need to add ```equidistant = F``` to disable this feature.
+Change the projection to ```WGS 84/EPSG:4326``` so that the axes on the graph are in lat/long. Note that when you create the frames with the ```frames_spatial()``` function, you need to add ```equidistant = F```.
 
-I actually need a projection that is not in degrees, in order to be able to draw the 12nm buffer around the islands. This is because it is difficult to draw circles in degrees, as they are bigger or smaller depending on where you are on the planet.
+I actually need a projection that is not in degrees, in order to be able to draw the 12nm buffer around the islands. This is because it is difficult to draw circles in degrees, as degrees change in size depending on where you are on the planet.
 
-BUT I found that the next step, ```align_move()```, doesn't work in the current projection so I'm projecting to mercator and then back to LAEA.
+BUT I found that the next step, ```align_move()```, doesn't work in the LAEA projection so I'm projecting to WGS84 to perform this step, and then back to LAEA later to draw buffers.
 
 ```{r}
 track.move <- sp::spTransform(track.move, crs("+init=epsg:4326"))
-
-# track.move <- sp::spTransform(track.move, crs("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 ```
 
+Note: Saunders UTM zone = 26E but I don't need that for this.
 
-Align the timestaps among tracks and down-sample to taking a position every 4 hours (240 mins) to reduce the number of frames in the final animation, as it is very slow to make it.
-
-Note: The ```align_move()``` isn't working when the data is in LAEA... no idea why. So align tracks with mercator projection, then project back to LAEA.
+Align the timestaps among tracks and down-sample to taking a position every 2 hours (120 mins) to reduce the number of frames in the final animation, as it is very slow to make it. Also project back to LAEA.
 ```{r}
 # align the time stamps (only need to do when plotting more than one individual)
-track.move <- align_move(track.move, res = 240, unit = "mins")
+track.move <- align_move(track.move, res = 120, unit = "mins")
 
 track.move <- sp::spTransform(track.move, crs("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 ```
 
 Create a buffer around the islands showing the current and proposed extent of the no take zones.
-```{r}
+```{r, message=FALSE}
 # Center of islands 
 b <- data.frame(lat = c(-57.795354, -58.450292, -59.042031, -59.450274, -57.094589), 
                 lon = c(-26.465941, -26.369959, -26.583162, -27.233031, -26.713769), 
@@ -124,44 +121,35 @@ b <- data.frame(lat = c(-57.795354, -58.450292, -59.042031, -59.450274, -57.0945
                            "Montagu",
                            "Bristol",
                            "Southern Thule",
-                           "Candelmas"))
+                           "Candelmas"),
+                group = rep("SSI", 5))
 
 # Tell it it's spatial and in lat/lon
 coordinates(b) <- ~ lon + lat
 projection(b) <- "+init=epsg:4326"
 
-# Reproject to tracking data projection i.e. Lambert's azimuthal equal area
+# Reproject to tracking data projection i.e. Lambert azimuthal equal area
 b_laea <- spTransform(b, CRS = CRS(projection(track.move)))
 
-# Create buffers around the island
+# Create buffers around the islands
 b_laea_22km <- gBuffer(b_laea, width = 22200, byid = TRUE)     # 12nm is 22.2 km
 b_laea_50km <- gBuffer(b_laea, width = 50000, byid = TRUE)     # 50km is the proposed extent
 
-
-islands = c("Saunders",
-            "Montagu",
-            "Bristol",
-            "Southern Thule",
-            "Candelmas")
-
+# Create a vector to group the five polygons with
+IDs <- rep("SSI", 5)
 
 # Find the unions of the dataframes
-b_union_22km <- unionSpatialPolygons(b_laea_22km, IDs = islands)
-b_union_50km <- unionSpatialPolygons(b_laea_50km, IDs = islands)
+b_union_22km <- unionSpatialPolygons(b_laea_22km, IDs = IDs)
+b_union_50km <- unionSpatialPolygons(b_laea_50km, IDs = IDs)
 
-# Transform for plotting
+# Transform to data frame for plotting
 transformed_22km <- broom::tidy(b_union_22km)
 transformed_50km <- broom::tidy(b_union_50km)
 
 
-# Create buffers around the island
-# b_22km <- gBuffer(b, width = 22200)     # 12nm is 22.2 km
-# b_50km <- gBuffer(b, width = 50000)     # 50km is the proposed extent
-
-
-
 ```
 
+## LAEA projection
 Create the frames using the ```frames_spatial``` function and then add the buffer zones as polygons using ```add_gg```.
 
 ```{r}
@@ -178,16 +166,15 @@ frames <- frames_spatial(track.move,
 
 
 #  working
-frames = add_gg(frames,
-                gg = expr(geom_polygon(data = transformed_22km, 
-                                       aes(x = long, y = lat, group = id),
-                                       colour = "grey70", fill = NA)))
+# frames = add_gg(frames,
+#                 gg = expr(geom_polygon(data = transformed_22km, 
+#                                        aes(x = long, y = lat, group = id),
+#                                        colour = "grey70", fill = NA)))
 
 frames = add_gg(frames,
                 gg = expr(geom_polygon(data = transformed_50km, 
                                        aes(x = long, y = lat, group = id),
                                        colour = "grey90", fill = NA)))
-
 
 
 
@@ -205,8 +192,52 @@ frames = add_gg(frames,
 frames[[1]]
 frames[[150]]
 
-animate_frames(frames, out_file = "AllPtt_LonLAT_res240_withbuffers.gif", overwrite = TRUE)
+# animate_frames(frames, out_file = "AllPtt_LonLAT_res240_withbuffers.gif", overwrite = TRUE)
 
+```
+
+## WGS84 projection (map axes are in lon/lat)
+
+
+```{r}
+# Project back to WGS84
+track.move.merc <- sp::spTransform(track.move, crs("+init=epsg:4326"))
+
+# Project buffers to WGS84
+b_union_22km_merc <- sp::spTransform(b_union_22km, crs("+init=epsg:4326"))
+b_union_50km_merc <- sp::spTransform(b_union_50km, crs("+init=epsg:4326"))
+
+# Transform to dataframes for plotting
+transformed_22km_merc <- broom::tidy(b_union_22km_merc)
+transformed_50km_merc <- broom::tidy(b_union_50km_merc)
+
+frames_merc <- frames_spatial(track.move.merc, 
+                         path_colours = viridis(20),
+                         map_service = "carto", 
+                         map_type = "dark", 
+                         alpha = 0.5, 
+                         path_legend = FALSE,
+                         equidistant = FALSE) %>% 
+  add_labels(x = "Longitude", y = "Latitude") %>%
+  add_scalebar(colour = "black", position = "bottomright", label_margin = 1, units = "km", distance = 100) %>%
+  add_timestamps(track.move.merc, type = "label")
+
+# add 12nm buffers
+# frames_merc = add_gg(frames_merc,
+#                 gg = expr(geom_polygon(data = transformed_22km_merc, 
+#                                        aes(x = long, y = lat, group = id),
+#                                        colour = "grey70", fill = NA)))
+
+# add 50km buffers
+frames_merc = add_gg(frames_merc,
+                gg = expr(geom_polygon(data = transformed_50km_merc, 
+                                       aes(x = long, y = lat, group = id),
+                                       colour = "grey90", fill = NA)))
+# To look at frames individually
+frames_merc[[1]]
+frames_merc[[150]]
+
+# animate_frames(frames_merc, out_file = "AllPtt_LonLAT_res120_with50kmbuffer.gif", overwrite = TRUE)
 ```
 
 
