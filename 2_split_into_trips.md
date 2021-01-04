@@ -1,7 +1,7 @@
 Split into trips
 ================
 Gemma Clucas
-8/26/2020
+4th January 2021
 
 ``` r
 library(maptools)
@@ -32,7 +32,8 @@ Seamask<-readOGR("Seamask.shp")
     ## It has 1 fields
 
 ``` r
-SSI <- crop(Seamask, c(450000, 750000, -600000, -100000))
+#SSI <- crop(Seamask, c(450000, 750000, -600000, -100000)) # the original values I used here were cropping the end of the tracks when I filtered for the points off land, so I increased the extent of this base map to prevent that
+SSI <- crop(Seamask, c(0, 1000000, -1000000, -100000))
 ```
 
     ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
@@ -101,6 +102,7 @@ remove_points_on_land <- function(track) {
   # add new column to track object identifying whether the track is off the island
   track$off_island <- !is.na(over(track, SSI_laea_buffer))
   # filter the points for just those that are off the island
+  # the last section of the track is marked as FALSE (on island) and so this filter is removing the last section of the track
   track %>% 
     filter(off_island == TRUE)
 }
@@ -117,7 +119,7 @@ rowShift <- function(x, shiftLen = 1L) {
     rr <- (1L + shiftLen):(length(x) + shiftLen)
     rr[rr<1] <- NA
     return(x[rr])
-  }
+}
 ```
 
 Then we calculate the lag time between each point. If there is a lag
@@ -140,7 +142,8 @@ split_into_trips <- function(at_sea) {
                                # calculate differences between Time_since and each lag 
                                diff1 = Time_since - lag1,
                                # put track$Start_trip == TRUE where the diff1 is greater than 30 mins
-                               Start_trip = diff1 >= 0.5)
+                               # Start_trip = diff1 >= 0.5)
+                               Start_trip = diff1 >= 0.25)
   # change the "NA" at the beginning of the first trip to "TRUE"
   at_sea2$Start_trip[1] <- TRUE
   # change the final value of Start_trip to TRUE to signal this is actually the end of the last trip
@@ -158,7 +161,6 @@ according to the min and max longitude and latitude for each trip.
 
 ``` r
 plot_trip <- function(x) {
-  # plot
   ggplot() + 
     geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
     geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
@@ -193,7 +195,7 @@ track <- predObj %>%
   rename(LON = mu.x, LAT = mu.y)
 ```
 
-Plot
+Plot the raw track
 
 ``` r
 plot_track(track)
@@ -201,7 +203,7 @@ plot_track(track)
 
 ![](2_split_into_trips_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
-Remove points on land
+Remove points on land and replot
 
 ``` r
 at_sea <- remove_points_on_land(track)
@@ -217,9 +219,6 @@ at_sea %>%
 ``` r
     #coord_fixed(ratio = 1, xlim = c(-45000, 15000), ylim = c(-10000, 60000), expand = TRUE, clip = "on")
 ```
-
-**Something is going wrong here and I can’t work out what. It seems like
-when the track crosses (100000, -200000) it gets cropped, why?**
 
 Split into trips using time stamps
 
@@ -245,12 +244,12 @@ tail(at_sea)
     ## # A tibble: 6 x 7
     ##      Ptt Time_absolute       Time_since off_island  lag1  diff1 Start_trip
     ##    <int> <chr>                    <dbl> <lgl>      <dbl>  <dbl> <lgl>     
-    ## 1 196697 2020-02-17 20:04:00      1011. TRUE       1011. 0.0167 FALSE     
-    ## 2 196697 2020-02-17 20:05:00      1011. TRUE       1011. 0.0167 FALSE     
-    ## 3 196697 2020-02-17 20:09:00      1011. TRUE       1011. 0.0667 FALSE     
-    ## 4 196697 2020-02-17 20:14:00      1011. TRUE       1011. 0.0833 FALSE     
-    ## 5 196697 2020-02-17 20:19:00      1011. TRUE       1011. 0.0833 FALSE     
-    ## 6 196697 2020-02-17 20:24:00      1012. TRUE       1011. 0.0833 TRUE
+    ## 1 196697 2020-02-26 20:09:00      1227. TRUE       1227. 0.0833 FALSE     
+    ## 2 196697 2020-02-26 20:14:00      1227. TRUE       1227. 0.0833 FALSE     
+    ## 3 196697 2020-02-26 20:19:00      1227. TRUE       1227. 0.0833 FALSE     
+    ## 4 196697 2020-02-26 20:24:00      1228. TRUE       1227. 0.0833 FALSE     
+    ## 5 196697 2020-02-26 20:29:00      1228. TRUE       1228. 0.0833 FALSE     
+    ## 6 196697 2020-02-26 20:34:00      1228. TRUE       1228. 0.0833 TRUE
 
 Store the row numbers of each `Start_trip == TRUE` in a list which we
 will use to split by trip
@@ -262,13 +261,6 @@ Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
 Plot the trips
 
 ``` r
-#plot_trip = function(x) {
-#    ggplot() +
-#      ggspatial::layer_spatial(data = SSI_laea) +
-#     coord_fixed(ratio = 1, xlim = c(-45000, 15000), ylim = c(-10000, 60000), expand = TRUE, clip = "on") +
-#     ggspatial::layer_spatial(data = at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ])
-#}
-
 seq <- c(1:(length(Start_row_indexes) -1))
 plots = purrr::map(seq, ~plot_trip(.x))
 
@@ -321,12 +313,12 @@ head(at_sea)
     ## # A tibble: 6 x 7
     ##      Ptt Time_absolute       Time_since off_island  lag1   diff1 Start_trip
     ##    <int> <chr>                    <dbl> <lgl>      <dbl>   <dbl> <lgl>     
-    ## 1 196698 2020-01-08 00:47:00       32.0 TRUE        NA   NA      TRUE      
-    ## 2 196698 2020-01-08 00:52:00       32.0 TRUE        32.0  0.0833 FALSE     
-    ## 3 196698 2020-01-08 00:57:00       32.1 TRUE        32.0  0.0833 FALSE     
-    ## 4 196698 2020-01-08 01:02:00       32.2 TRUE        32.1  0.0833 FALSE     
-    ## 5 196698 2020-01-08 01:07:00       32.3 TRUE        32.2  0.0833 FALSE     
-    ## 6 196698 2020-01-08 01:12:00       32.4 TRUE        32.3  0.0833 FALSE
+    ## 1 196698 2020-01-08 03:57:00       35.1 TRUE        NA   NA      TRUE      
+    ## 2 196698 2020-01-08 04:02:00       35.2 TRUE        35.1  0.0833 FALSE     
+    ## 3 196698 2020-01-08 04:07:00       35.3 TRUE        35.2  0.0833 FALSE     
+    ## 4 196698 2020-01-08 04:12:00       35.4 TRUE        35.3  0.0833 FALSE     
+    ## 5 196698 2020-01-08 04:17:00       35.4 TRUE        35.4  0.0833 FALSE     
+    ## 6 196698 2020-01-08 04:22:00       35.5 TRUE        35.4  0.0833 FALSE
 
 ``` r
 tail(at_sea)
@@ -346,9 +338,6 @@ tail(at_sea)
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
 ```
 
-**Again the final long trip is getting cropped, also when it passes
-100000. Why?**
-
 Plot each trip.
 
 ``` r
@@ -358,17 +347,12 @@ plots = purrr::map(seq, ~plot_trip(.x))
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->
 
-``` r
-# plot with patchwork
-#    plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + 
-#    plots[[5]] + plots[[6]] + plots[[7]] + plots[[8]] +
-#    plots[[9]] + plots[[10]] + plots[[11]] + plots[[12]] 
-```
+Why is this trip being cut?
 
-Why are the ends of my trips being cut? something is happening at
--200000, -100000 I think.
+Is the 30 minute on land cut-off working or are short trips being
+missed?
 
 It would be good to print the start date and time of the trip, and the
 duration, onto each graph to see whether they make sense.
