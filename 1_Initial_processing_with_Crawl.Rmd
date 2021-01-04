@@ -172,6 +172,7 @@ x1$Time <- adjust.duplicateTimes(x1$Time, x1$Ptt)
 
 
 ## Apply McConnell speed filter in trip package to remove bad fixes
+Note that I am setting the maximum speed for the McConnell speed filter to 12 kph. According to Culick et al (1994), the preferred swimming speeds of chinstrap penguins are 2.4 m/s, which is 8.6 kph. Allowing for a speed up to 12 kph therefore seems reasonable.
 
 ```{r}
 # I can't find a way to do this without making a new dataframe x2
@@ -185,7 +186,7 @@ coordinates(x2) <- c("LON","LAT")
 x2$Pass_speed <- 
   x2 %>% 
   trip(., TORnames = c("Time","Ptt")) %>% 
-  speedfilter(., max.speed = 8) 
+  speedfilter(., max.speed = 12) 
 
 # Filter the original dataframe
 x1 <- x1 %>% dplyr::filter(x2$Pass_speed == TRUE)
@@ -279,7 +280,7 @@ fit1 <- crwMLE(
   prior=prior, 
   control=list(trace=1, REPORT=1) 
 ) 
-
+   
 fit1 
 ```
 
@@ -378,7 +379,7 @@ filter_points <-  function(penguin) {
   # apply McConnel speed filter
   x2$Pass_speed <- x2 %>% 
     trip(., TORnames = c("Time","Ptt")) %>% 
-    speedfilter(., max.speed = 8) 
+    speedfilter(., max.speed = 12) 
   # filter the original data for the points that pass the speed filter
   x1 <- x1 %>% dplyr::filter(x2$Pass_speed == TRUE)
   # make the points spatial
@@ -541,9 +542,9 @@ x1.df <- data.frame(x1)
  
 Next we apply the ```crwMLE()``` function to the spatial object ```x1```. Run this multiple times until you don't get any ```NaN```s.
  
-```{r, cache = TRUE, message = FALSE}
+```{r crawl_196698, cache = TRUE, message = FALSE}
 fit1 <- crawl(x1)
-print(fit1)
+print(fit1)      
 ```
 Again, caching is broken, so ignore these results.  
 
@@ -577,7 +578,7 @@ plot_cleaned_points(x1.df)
 
 ```
 Crawl (ran many times)
-```{r, cache = TRUE, message = FALSE}
+```{r crawl_196699, cache = TRUE, message = FALSE}
 fit1 <- crawl(x1)
 print(fit1)
 
@@ -630,8 +631,8 @@ Crawl (ran many times).
 
 ```{r crawl_196700, cache = TRUE}
 if(exists("fit1")){rm(fit1)} 
-fit1 <- crawl(x1)
-print(fit1)
+fit1 <- crawl(x1) 
+print(fit1)     
 ```
 
 
@@ -644,7 +645,7 @@ plot_crawled_track_Saunders()
 ```
 
 
-**There seem to be a lot of points lost due to the speed filter on this penguin. Should I re-run with a more lenient filter?** 
+There seem to be a lot of points lost due to the speed filter on this penguin. It doesn't make sense to increase the speed filter any further I don't think, so maybe these are just a lot of inaccurate fixes outside of the foraging area.
 
 
 Write to CSV:
@@ -653,8 +654,3 @@ Write to CSV:
 ```
 
 
-## Questions to ask
-
-1. Are the times that we get from the trackers in UTC? Should I convert them to local times so that we can calculate proportion of day or night spent foraging?
-2. What are the units of the speed filter - is it km/hr? I don't remember what the justification was for setting it to 8...
-3. 
