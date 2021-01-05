@@ -142,8 +142,9 @@ split_into_trips <- function(at_sea) {
                                # calculate differences between Time_since and each lag 
                                diff1 = Time_since - lag1,
                                # put track$Start_trip == TRUE where the diff1 is greater than 30 mins
-                               # Start_trip = diff1 >= 0.5)
-                               Start_trip = diff1 >= 0.25)
+                               # Start_trip = diff1 >= 0.5) # 30 minutes on land
+                               Start_trip = diff1 >= 0.16) # 10 minutes on land
+                               # Start_trip = diff1 >= 0.25) # 15 minutes on land
   # change the "NA" at the beginning of the first trip to "TRUE"
   at_sea2$Start_trip[1] <- TRUE
   # change the final value of Start_trip to TRUE to signal this is actually the end of the last trip
@@ -160,23 +161,48 @@ into trips and plot each indiviudally. The function will scale the map
 according to the min and max longitude and latitude for each trip.
 
 ``` r
+# plot_trip <- function(x) {
+#   ggplot() + 
+#     geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
+#     geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
+#     coord_equal() +
+#     geom_point(data = data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT)) +
+#     theme_bw() +
+#     theme(panel.grid.major = element_blank(), 
+#           panel.grid.minor = element_blank(),
+#           panel.background = element_rect(fill = "aliceblue"),
+#           legend.title = element_blank()) +
+#     coord_fixed(ratio = 1, 
+#                 xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
+#                          data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()), 
+#                 ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
+#                          data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
+#                 expand = TRUE, 
+#                 clip = "on")
+# }
+
 plot_trip <- function(x) {
-  ggplot() + 
+  ggplot() +
     geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
     geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
     coord_equal() +
     geom_point(data = data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT)) +
     theme_bw() +
-    theme(panel.grid.major = element_blank(), 
+    labs(title = paste0("Trip ", x),
+         subtitle = paste0("Trip start: ",
+                            data.frame(at_sea[Start_row_indexes[[x]], ]) %>% select(Time_absolute),
+                            ", Trip end: ",
+                            data.frame(at_sea[Start_row_indexes[[x+1]]-1, ]) %>% select(Time_absolute))) +
+       theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue"),
           legend.title = element_blank()) +
-    coord_fixed(ratio = 1, 
+    coord_fixed(ratio = 1,
                 xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
-                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()), 
+                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
                 ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
                          data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
-                expand = TRUE, 
+                expand = TRUE,
                 clip = "on")
 }
 ```
@@ -267,7 +293,7 @@ plots = purrr::map(seq, ~plot_trip(.x))
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-15.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-17.png)<!-- -->
 
 ``` r
 # plot with patchwork
@@ -347,12 +373,157 @@ plots = purrr::map(seq, ~plot_trip(.x))
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-17.png)<!-- -->
+Why is this trip being cut into two?
 
-Why is this trip being cut?
+So far it seems that a 30 minute cut off for splitting trips is working
+better than a 15 minute one, as some of the trips close to the colony
+are being cut into multiple with the 15 minute cut off… try more
+individuals
+though
+
+### Penguin - 196699
+
+``` r
+predObj <- read.csv("predicted_tracks/196699_track.csv", stringsAsFactors = FALSE) 
+
+# select the useful columns and rename
+track <- predObj %>%  
+  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>% 
+  rename(LON = mu.x, LAT = mu.y)
+
+plot_track(track)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
+``` r
+at_sea <- remove_points_on_land(track)
+
+# plot to make sure it worked
+at_sea %>% 
+    data.frame() %>% 
+    plot_track(.) 
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
+
+``` r
+at_sea <- split_into_trips(at_sea)
+head(at_sea)
+```
+
+    ## # A tibble: 6 x 7
+    ##      Ptt Time_absolute       Time_since off_island  lag1   diff1 Start_trip
+    ##    <int> <chr>                    <dbl> <lgl>      <dbl>   <dbl> <lgl>     
+    ## 1 196699 2020-01-07 19:43:00       26.9 TRUE        NA   NA      TRUE      
+    ## 2 196699 2020-01-07 19:48:00       27.0 TRUE        26.9  0.0833 FALSE     
+    ## 3 196699 2020-01-07 19:53:00       27.0 TRUE        27.0  0.0833 FALSE     
+    ## 4 196699 2020-01-07 19:58:00       27.1 TRUE        27.0  0.0833 FALSE     
+    ## 5 196699 2020-01-07 20:03:00       27.2 TRUE        27.1  0.0833 FALSE     
+    ## 6 196699 2020-01-07 20:08:00       27.3 TRUE        27.2  0.0833 FALSE
+
+``` r
+tail(at_sea)
+```
+
+    ## # A tibble: 6 x 7
+    ##      Ptt Time_absolute       Time_since off_island  lag1  diff1 Start_trip
+    ##    <int> <chr>                    <dbl> <lgl>      <dbl>  <dbl> <lgl>     
+    ## 1 196699 2020-02-12 11:28:00       883. TRUE        883. 0.0833 FALSE     
+    ## 2 196699 2020-02-12 11:33:00       883. TRUE        883. 0.0833 FALSE     
+    ## 3 196699 2020-02-12 11:38:00       883. TRUE        883. 0.0833 FALSE     
+    ## 4 196699 2020-02-12 11:43:00       883. TRUE        883. 0.0833 FALSE     
+    ## 5 196699 2020-02-12 11:48:00       883. TRUE        883. 0.0833 FALSE     
+    ## 6 196699 2020-02-12 11:52:00       883. TRUE        883. 0.0667 TRUE
+
+``` r
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+```
+
+Plot each trip.
+
+``` r
+seq <- c(1:(length(Start_row_indexes) -1))
+plots = purrr::map(seq, ~plot_trip(.x))
+
+invisible(lapply(plots, print))
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-20.png)<!-- -->
+
+### Penguin - 196707
+
+``` r
+predObj <- read.csv("predicted_tracks/196707_track.csv", stringsAsFactors = FALSE) 
+
+# select the useful columns and rename
+track <- predObj %>%  
+  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>% 
+  rename(LON = mu.x, LAT = mu.y)
+
+plot_track(track)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+``` r
+at_sea <- remove_points_on_land(track)
+
+# plot to make sure it worked
+at_sea %>% 
+    data.frame() %>% 
+    plot_track(.) 
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
+
+``` r
+at_sea <- split_into_trips(at_sea)
+head(at_sea)
+```
+
+    ## # A tibble: 6 x 7
+    ##      Ptt Time_absolute       Time_since off_island  lag1   diff1 Start_trip
+    ##    <int> <chr>                    <dbl> <lgl>      <dbl>   <dbl> <lgl>     
+    ## 1 196707 2020-01-07 06:56:00       14.1 TRUE        NA   NA      TRUE      
+    ## 2 196707 2020-01-07 07:01:00       14.2 TRUE        14.1  0.0833 FALSE     
+    ## 3 196707 2020-01-07 07:06:00       14.3 TRUE        14.2  0.0833 FALSE     
+    ## 4 196707 2020-01-07 07:11:00       14.4 TRUE        14.3  0.0833 FALSE     
+    ## 5 196707 2020-01-07 07:16:00       14.4 TRUE        14.4  0.0833 FALSE     
+    ## 6 196707 2020-01-07 07:21:00       14.5 TRUE        14.4  0.0833 FALSE
+
+``` r
+tail(at_sea)
+```
+
+    ## # A tibble: 6 x 7
+    ##      Ptt Time_absolute       Time_since off_island  lag1  diff1 Start_trip
+    ##    <int> <chr>                    <dbl> <lgl>      <dbl>  <dbl> <lgl>     
+    ## 1 196707 2020-03-13 20:11:00      1611. TRUE       1611. 0.0833 FALSE     
+    ## 2 196707 2020-03-13 20:16:00      1611. TRUE       1611. 0.0833 FALSE     
+    ## 3 196707 2020-03-13 20:21:00      1612. TRUE       1611. 0.0833 FALSE     
+    ## 4 196707 2020-03-13 20:22:00      1612. TRUE       1612. 0.0167 FALSE     
+    ## 5 196707 2020-03-13 20:26:00      1612. TRUE       1612. 0.0667 FALSE     
+    ## 6 196707 2020-03-13 20:31:00      1612. TRUE       1612. 0.0833 TRUE
+
+``` r
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+```
+
+Plot each trip.
+
+``` r
+seq <- c(1:(length(Start_row_indexes) -1))
+plots = purrr::map(seq, ~plot_trip(.x))
+
+invisible(lapply(plots, print))
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-30.png)<!-- -->
 
 Is the 30 minute on land cut-off working or are short trips being
 missed?
 
-It would be good to print the start date and time of the trip, and the
-duration, onto each graph to see whether they make sense.
+It would be good to print the duration, onto each graph to see whether
+they make sense.

@@ -85,7 +85,7 @@ remove_points_on_land <- function(track) {
   track$off_island <- !is.na(over(track, SSI_laea_buffer))
   # filter the points for just those that are off the island
   # the last section of the track is marked as FALSE (on island) and so this filter is removing the last section of the track
-  track %>% 
+  track %>%
     filter(off_island == TRUE)
 }
 
@@ -116,8 +116,9 @@ split_into_trips <- function(at_sea) {
                                # calculate differences between Time_since and each lag 
                                diff1 = Time_since - lag1,
                                # put track$Start_trip == TRUE where the diff1 is greater than 30 mins
-                                Start_trip = diff1 >= 0.5)
-                               # Start_trip = diff1 >= 0.25)
+                               # Start_trip = diff1 >= 0.5) # 30 minutes on land
+                               Start_trip = diff1 >= 0.16) # 10 minutes on land
+                               # Start_trip = diff1 >= 0.25) # 15 minutes on land
   # change the "NA" at the beginning of the first trip to "TRUE"
   at_sea2$Start_trip[1] <- TRUE
   # change the final value of Start_trip to TRUE to signal this is actually the end of the last trip
@@ -128,25 +129,32 @@ split_into_trips <- function(at_sea) {
 ```
 
 ### Function for plotting the trips
-This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will scale the map according to the min and max longitude and latitude for each trip.
+This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip.
 ```{r}
 plot_trip <- function(x) {
-  ggplot() + 
+  ggplot() +
     geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
     geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
     coord_equal() +
     geom_point(data = data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT)) +
     theme_bw() +
-    theme(panel.grid.major = element_blank(), 
+    # add headings for trip number and start/stop time
+    labs(title = paste0("Trip ", x),
+         subtitle = paste0("Trip start: ",
+                            data.frame(at_sea[Start_row_indexes[[x]], ]) %>% select(Time_absolute),
+                            ", Trip end: ",
+                            data.frame(at_sea[Start_row_indexes[[x+1]]-1, ]) %>% select(Time_absolute))) +
+    theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue"),
           legend.title = element_blank()) +
-    coord_fixed(ratio = 1, 
+    # size according to the dimensions of the trip
+    coord_fixed(ratio = 1,
                 xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
-                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()), 
+                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
                 ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
                          data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
-                expand = TRUE, 
+                expand = TRUE,
                 clip = "on")
 }
 
@@ -172,26 +180,24 @@ plot_track(track)
 ```
 
 
-Remove points on land and replot
+Remove points on land and replot to make sure nothing has gone wrong.
 ```{r}
 at_sea <- remove_points_on_land(track)
 
-# plot to make sure it worked
 at_sea %>% 
     data.frame() %>% 
-    plot_track(.) #+
-    #coord_fixed(ratio = 1, xlim = c(-45000, 15000), ylim = c(-10000, 60000), expand = TRUE, clip = "on")
+    plot_track(.) 
 
 ```
 
 
 
 
-Split into trips using time stamps
+Split into trips using time stamps.
 ```{r}
 at_sea <- split_into_trips(at_sea)
-head(at_sea)
-tail(at_sea)
+head(at_sea) # check that the table starts with Start_trip = TRUE
+tail(at_sea) # check that the table ends with Start_trip = TRUE
 ```
 
 
@@ -227,6 +233,7 @@ track <- predObj %>%
 
 plot_track(track)
 
+# remove points on land
 at_sea <- remove_points_on_land(track)
 
 # plot to make sure it worked
@@ -235,10 +242,12 @@ at_sea %>%
     plot_track(.) #+
     #coord_fixed(ratio = 1, xlim = c(-45000, 15000), ylim = c(-10000, 60000), expand = TRUE, clip = "on")
 
+# split into trips
 at_sea <- split_into_trips(at_sea)
 head(at_sea)
 tail(at_sea)
 
+# store row indexes for the start of each trip
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
 ```
 
@@ -254,9 +263,7 @@ invisible(lapply(plots, print))
 ```
 Why is this trip being cut into two?
 
-So far it seems that a 30 minute cut off for splitting trips is working better than a 15 minute one, as some of the trips close to the colony are being cut into multiple with the 15 minute cut off
-
-try one more individual 
+So far it seems that a 30 minute cut off for splitting trips is working better than a 15 minute one, as some of the trips close to the colony are being cut into multiple with the 15 minute cut off... try more individuals though
 
 ### Penguin - 196699
 
@@ -333,4 +340,4 @@ invisible(lapply(plots, print))
 
 Is the 30 minute on land cut-off working or are short trips being missed?
 
-It would be good to print the start date and time of the trip, and the duration, onto each graph to see whether they make sense. Do this next before deciding final cut off time to use.
+It would be good to print the duration, onto each graph to see whether they make sense.
