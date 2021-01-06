@@ -71,7 +71,7 @@ plot_track <- function(x) {
 ```
 
 ### Function to remove points that are over land
-
+This also removes points within 500m of land.
 ```{r}
 # first create 500m buffer around island
 SSI_laea_buffer <- buffer(SSI_laea, width=-500)
@@ -84,16 +84,15 @@ remove_points_on_land <- function(track) {
   # add new column to track object identifying whether the track is off the island
   track$off_island <- !is.na(over(track, SSI_laea_buffer))
   # filter the points for just those that are off the island
-  # the last section of the track is marked as FALSE (on island) and so this filter is removing the last section of the track
   track %>%
     filter(off_island == TRUE)
 }
 
 ```
 
-### Split into trips using time stamps
+### Split into trips 
 
-First create a function for offsetting the values in a column by 1 row (or more if you change ```shiftLen```).
+First create a function for offsetting the values in a column by 1 row (or more if you change ```shiftLen```). This is needed to later calculate the lag time between each point.
 ```{r}
 # function for offsetting values by 1 row
 rowShift <- function(x, shiftLen = 1L) {
@@ -106,16 +105,18 @@ rowShift <- function(x, shiftLen = 1L) {
 
 Then we calculate the lag time between each point. If there is a lag longer than 5 minutes (0.08333 hours), then this is when the bird was on land (technically inside the buffer zone) and so we can use this to split the track into separate foraging trips.  
 
-In fact, I am using a lag of 30 minutes to define the end of one trip and the start of the next, in case the bird was foraging or hanging out just at the edge of the buffer zone.
+I still want to play around with the best lag time to use (30 mins maybe?), in case the bird was foraging or hanging out just at the edge of the buffer zone.
 
-In order to plot the final trip, I need to fudge the final line of ```at_sea``` and give it ```Start_Trip == TRUE``` so that I can use Start_row_indexes to plot this final trip
+Each time there is a lag greater than x minutes, we get a ```Start_trip = TRUE``` in the ```at_sea``` spatial object, otherwise ```Start_trip = FALSE```.
+
+In order to plot the final trip, I need to fudge the final line of ```at_sea``` and give it ```Start_Trip == TRUE``` so that I can use Start_row_indexes to plot this final trip.
 ```{r}
 split_into_trips <- function(at_sea) {
   # offset the values in Time_since by 1 row 
   at_sea2 <- at_sea %>% mutate(lag1 = rowShift(Time_since, -1), 
                                # calculate differences between Time_since and each lag 
                                diff1 = Time_since - lag1,
-                               # put track$Start_trip == TRUE where the diff1 is greater than 30 mins
+                               # put track$Start_trip == TRUE where the diff1 is greater than x mins
                                # Start_trip = diff1 >= 0.5) # 30 minutes on land
                                Start_trip = diff1 >= 0.16) # 10 minutes on land
                                # Start_trip = diff1 >= 0.25) # 15 minutes on land
@@ -129,13 +130,15 @@ split_into_trips <- function(at_sea) {
 ```
 
 ### Function for plotting the trips
-This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip.
+This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip. This is not idea but will do for now.
 ```{r}
 plot_trip <- function(x) {
   ggplot() +
+    # plot the map first
     geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
     geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
     coord_equal() +
+    # add the points. This uses the trip number (x) to subset the dataframe by trip.
     geom_point(data = data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT)) +
     theme_bw() +
     # add headings for trip number and start/stop time
@@ -148,7 +151,7 @@ plot_trip <- function(x) {
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue"),
           legend.title = element_blank()) +
-    # size according to the dimensions of the trip
+    # size according to the dimensions of the trip - this is not ideal
     coord_fixed(ratio = 1,
                 xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
                          data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
@@ -191,9 +194,7 @@ at_sea %>%
 ```
 
 
-
-
-Split into trips using time stamps.
+Split into trips.
 ```{r}
 at_sea <- split_into_trips(at_sea)
 head(at_sea) # check that the table starts with Start_trip = TRUE
@@ -239,8 +240,7 @@ at_sea <- remove_points_on_land(track)
 # plot to make sure it worked
 at_sea %>% 
     data.frame() %>% 
-    plot_track(.) #+
-    #coord_fixed(ratio = 1, xlim = c(-45000, 15000), ylim = c(-10000, 60000), expand = TRUE, clip = "on")
+    plot_track(.) 
 
 # split into trips
 at_sea <- split_into_trips(at_sea)
@@ -261,9 +261,9 @@ plots = purrr::map(seq, ~plot_trip(.x))
 invisible(lapply(plots, print))
 
 ```
-Why is this trip being cut into two?
 
-So far it seems that a 30 minute cut off for splitting trips is working better than a 15 minute one, as some of the trips close to the colony are being cut into multiple with the 15 minute cut off... try more individuals though
+**Why is this last trip being cut into two? Is there a gap in the data for some reason? Come back to this**
+
 
 ### Penguin - 196699
 
@@ -338,6 +338,10 @@ invisible(lapply(plots, print))
 
 ```
 
-Is the 30 minute on land cut-off working or are short trips being missed?
+## Questions
 
-It would be good to print the duration, onto each graph to see whether they make sense.
+1. Is 30 minutes on land a good cut-off or are short trips being missed? I should think about this later after sorting out question 2.
+
+2. How do I deal with the fact that when the bird is most likely on land, the crawled tracks often show it moving slowly away from the colony? Should I remove parts of the track when the speed is very slow? How would I calculate the speed of the bird?
+
+3. Is it ok to delete some of the short trips which are clearly just the result of an inaccurate fix? Is there a rule of thumb to follow for keeping trips that look real (e.g. the have some wiggles in them?) and deleting the bad stuff?
