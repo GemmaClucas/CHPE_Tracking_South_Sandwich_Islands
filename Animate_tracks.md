@@ -21,56 +21,77 @@ Gemma Clucas
 #animate_frames(frames, out_file = "example.gif")
 ```
 
-## My data
-
-Load crawled tracks.
+## My data - one individual
 
 ``` r
-# read in one track 
-# predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALSE) 
+# read in one track
+predObj <- read.csv("predicted_tracks/196707_track.csv", stringsAsFactors = FALSE)
 
-# format
-# track <- predObj %>%
-#   dplyr::filter(locType == "p") %>%                                   # select only predicted positions
-#   dplyr::select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%       # select only useful colums
-#   rename(LON = mu.x, LAT = mu.y) %>%                                 # rename columns for ease of use
-#   mutate(time = as.POSIXct(Time_absolute, tz = "UTC"))               # make sure times are in POSIXct
-
-# read in all tracks at once into tibble
-tbl <-
-    list.files(path = "predicted_tracks", pattern = "*.csv") %>% 
-    map_df(~read_csv(paste0("predicted_tracks/", .)))
-
-# do some formatting
-track <- tbl %>%
+# format one track
+track <- predObj %>%
   dplyr::filter(locType == "p") %>%                                   # select only predicted positions
   dplyr::select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%       # select only useful colums
   rename(LON = mu.x, LAT = mu.y) %>%                                 # rename columns for ease of use
   mutate(time = as.POSIXct(Time_absolute, tz = "UTC"))               # make sure times are in POSIXct
 
-# function for adjusting times to make them all unique by adjusting by 5 seconds
-make_unique <- function(x) {
-  xts::make.time.unique(x$Time_absolute, eps = 5)
-}
-
-# apply function
-track <- track %>% 
-  dplyr::arrange(time, Ptt) %>%                             # order by time, then ID
-  dplyr::group_by(time) %>% tidyr::nest() %>%               # nesting makes a list of tibbles containing data for each time stamp
-  dplyr::mutate(unique_time = purrr::map(data, make_unique)) %>%      # apply function and save results in new column 'unique_time'
-  tidyr::unnest_legacy() %>%                                # this is much faster than unnest() and restores the dataframe
-  dplyr::select(-Time_absolute) %>% 
-  dplyr::arrange(Ptt, time)
+# Optional: crop the tracks to just the chick-rearing period. 
+# 196697 leaves the colony around 8th February
+# track <- track %>% filter(time <= "2020-02-07 23:59:00")
+# 196698 leaves the colony on 3rd Feb
+# track <- track %>% filter(time <= "2020-02-03 23:59:00")
+# 196707 leaves the colony on 21st Feb
+track <- track %>% filter(time <= "2020-02-21 23:59:00")
 
 
 # change to move object and supply the LAEA projection
-track.move <- track %>% 
-  df2move(., 
-          proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"), 
-          x = "LON", 
-          y = "LAT", 
-          time = "unique_time",
+track.move <- track %>%
+  df2move(.,
+          proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"),
+          x = "LON",
+          y = "LAT",
+          time = "time",
           track_id = "Ptt")
+```
+
+## My data - all individuals
+
+``` r
+# # read in all tracks at once into tibble
+# tbl <-
+#     list.files(path = "predicted_tracks", pattern = "*.csv") %>% 
+#     map_df(~read_csv(paste0("predicted_tracks/", .)))
+# 
+# # do some formatting on all tracks
+# track <- tbl %>%
+#   dplyr::filter(locType == "p") %>%                                   # select only predicted positions
+#   dplyr::select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%       # select only useful colums
+#   rename(LON = mu.x, LAT = mu.y) %>%                                 # rename columns for ease of use
+#   mutate(time = as.POSIXct(Time_absolute, tz = "UTC"))               # make sure times are in POSIXct
+# 
+# # function for adjusting times to make them all unique by adjusting by 5 seconds (only needs to run with more than one individual)
+# make_unique <- function(x) {
+#   xts::make.time.unique(x$Time_absolute, eps = 5)
+# }
+# 
+# # apply that function (run with more than one individual)
+# track <- track %>% 
+#   dplyr::arrange(time, Ptt) %>%                             # order by time, then ID
+#   dplyr::group_by(time) %>% tidyr::nest() %>%               # nesting makes a list of tibbles containing data for each time stamp
+#   dplyr::mutate(unique_time = purrr::map(data, make_unique)) %>%      # apply function and save results in new column 'unique_time'
+#   tidyr::unnest_legacy() %>%                                # this is much faster than unnest() and restores the dataframe
+#   dplyr::select(-Time_absolute) %>% 
+#   dplyr::arrange(Ptt, time)
+# 
+# 
+# # change to move object and supply the LAEA projection 
+# track.move <- track %>% 
+#   df2move(., 
+#           proj = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"), 
+#           x = "LON", 
+#           y = "LAT", 
+#           time = "unique_time",
+#           track_id = "Ptt")
+# 
 ```
 
 Change the projection to `WGS 84/EPSG:4326` so that the axes on the
@@ -98,8 +119,8 @@ animation, as it is very slow to make it. Also project back to
 LAEA.
 
 ``` r
-# align the time stamps (only need to do when plotting more than one individual)
-track.move <- align_move(track.move, res = 120, unit = "mins")
+# track.move <- align_move(track.move, res = 120, unit = "mins") # use this for all individuals
+track.move <- align_move(track.move, res = 60, unit = "mins") # using higher resolution for single individuals
 
 track.move <- sp::spTransform(track.move, crs("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 ```
@@ -148,7 +169,8 @@ buffer zones as polygons using `add_gg`.
 
 ``` r
 frames <- frames_spatial(track.move, 
-                         path_colours = viridis(20),
+                         #path_colours = viridis(20), # run this for all individuals
+                         path_colours = viridis(1), # run this for a single individual
                          map_service = "carto", 
                          map_type = "dark", 
                          alpha = 0.5, 
@@ -161,7 +183,7 @@ frames <- frames_spatial(track.move,
 
     ## Checking temporal alignment...
     ## Processing movement data...
-    ## Approximated animation duration: ≈ 36.28s at 25 fps for 907 frames
+    ## Approximated animation duration: ≈ 44.56s at 25 fps for 1114 frames
     ## Retrieving and compositing basemap imagery...
     ## Assigning raster maps to frames...
     ## Creating frames...
@@ -197,16 +219,20 @@ frames[[1]]
     ## geom_path: Each group consists of only one observation. Do you need to adjust
     ## the group aesthetic?
 
-![](Animate_tracks_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](Animate_tracks_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 frames[[150]]
 ```
 
-![](Animate_tracks_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
+![](Animate_tracks_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
 ``` r
 # animate_frames(frames, out_file = "AllPtt_LonLAT_res240_withbuffers.gif", overwrite = TRUE)
+# animate_frames(frames, out_file = "196697_laea_res120.mov", overwrite = TRUE)
+# animate_frames(frames, out_file = "196697_laea_res120_chickrearing.mov", overwrite = TRUE)
+# animate_frames(frames, out_file = "196698_laea_res120_chickrearing.mov", overwrite = TRUE)
+# animate_frames(frames, out_file = "196707_laea_res120_chickrearing.mov", overwrite = TRUE)
 ```
 
 ## WGS84 projection (map axes are in lon/lat)
@@ -224,7 +250,8 @@ transformed_22km_merc <- broom::tidy(b_union_22km_merc)
 transformed_50km_merc <- broom::tidy(b_union_50km_merc)
 
 frames_merc <- frames_spatial(track.move.merc, 
-                         path_colours = viridis(20),
+                         # path_colours = viridis(20), # use for all individuals
+                         path_colours = viridis(1),    # use for one individual
                          map_service = "carto", 
                          map_type = "dark", 
                          alpha = 0.5, 
@@ -237,7 +264,7 @@ frames_merc <- frames_spatial(track.move.merc,
 
     ## Checking temporal alignment...
     ## Processing movement data...
-    ## Approximated animation duration: ≈ 36.28s at 25 fps for 907 frames
+    ## Approximated animation duration: ≈ 44.56s at 25 fps for 1114 frames
     ## Retrieving and compositing basemap imagery...
     ## Assigning raster maps to frames...
     ## Creating frames...
@@ -261,13 +288,13 @@ frames_merc[[1]]
     ## geom_path: Each group consists of only one observation. Do you need to adjust
     ## the group aesthetic?
 
-![](Animate_tracks_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](Animate_tracks_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
 frames_merc[[150]]
 ```
 
-![](Animate_tracks_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
+![](Animate_tracks_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->
 
 ``` r
 # animate_frames(frames_merc, out_file = "AllPtt_LonLAT_res120_with50kmbuffer.gif", overwrite = TRUE)

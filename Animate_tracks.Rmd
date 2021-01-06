@@ -239,7 +239,8 @@ transformed_22km_merc <- broom::tidy(b_union_22km_merc)
 transformed_50km_merc <- broom::tidy(b_union_50km_merc)
 
 frames_merc <- frames_spatial(track.move.merc, 
-                         path_colours = viridis(20),
+                         # path_colours = viridis(20), # use for all individuals
+                         path_colours = viridis(1),    # use for one individual
                          map_service = "carto", 
                          map_type = "dark", 
                          alpha = 0.5, 
