@@ -55,6 +55,7 @@ track <- predObj %>%
 # track <- track %>% filter(time <= "2020-02-07 23:59:00")
 # 196698 leaves the colony on 3rd Feb
 # track <- track %>% filter(time <= "2020-02-03 23:59:00")
+# 196707 leaves the colony on 21st Feb
 track <- track %>% filter(time <= "2020-02-21 23:59:00")
 
 
