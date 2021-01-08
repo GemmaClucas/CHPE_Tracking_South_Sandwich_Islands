@@ -17,6 +17,7 @@ library(sp)
 library(ggplot2)
 library(knitr)
 library(spdplyr)
+library(geosphere)
 options(scipen=999)
 ```
 
@@ -36,13 +37,7 @@ Seamask<-readOGR("Seamask.shp")
 SSI <- crop(Seamask, c(0, 1000000, -1000000, -100000))
 ```
 
-    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
-    ## intersection at or near point 77954.359424359995 26605.230663620001
-
     ## x[i, ] is invalid
-
-    ## Warning in rgeos::gIntersection(x[i, ], y, byid = TRUE, drop_lower_td = TRUE):
-    ## Invalid objects found; consider using set_RGEOS_CheckValidity(2L)
 
 ``` r
 #Re-project to Lambert Azimuthal Equal Area
@@ -154,6 +149,15 @@ split_into_trips <- function(at_sea) {
   at_sea2$Start_trip[1] <- TRUE
   # change the final value of Start_trip to TRUE to signal this is actually the end of the last trip
   at_sea2[length(at_sea2), "Start_trip"] <- TRUE
+  # record where each trip begins
+  Start_row_indexes <- as.list(which(at_sea2$Start_trip == TRUE))
+  # make a sequence from 1 to the number of trips
+  seq <- c(1:(length(Start_row_indexes) -1))
+  # add a column that records the trip number in the dataframe
+  at_sea2$Trip <-
+    purrr::map(seq, ~rep(.x, each = (Start_row_indexes[[.x + 1]] - (Start_row_indexes[[.x]])))) %>% 
+    unlist() %>%
+    append(., values = tail(., n=1))
   return(at_sea2)
 }
 ```
@@ -207,7 +211,7 @@ predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALS
 
 # select the useful columns and rename
 track <- predObj %>%  
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>% 
+  select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>% 
   rename(LON = mu.x, LAT = mu.y)
 ```
 
@@ -235,58 +239,72 @@ Split into trips.
 
 ``` r
 at_sea <- split_into_trips(at_sea)
-head(at_sea) # check that the table starts with Start_trip = TRUE
+head(at_sea) %>% kable() # check that the table starts with Start_trip = TRUE and trip number 1
 ```
 
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island   lag1   diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>       <dbl>   <dbl> <lgl>     
-    ## 1 196697 2020-01-06 17:14:00      0.4   TRUE       NA     NA      TRUE      
-    ## 2 196697 2020-01-06 17:19:00      0.483 TRUE        0.4    0.0833 FALSE     
-    ## 3 196697 2020-01-06 17:24:00      0.567 TRUE        0.483  0.0833 FALSE     
-    ## 4 196697 2020-01-06 17:29:00      0.65  TRUE        0.567  0.0833 FALSE     
-    ## 5 196697 2020-01-06 17:34:00      0.733 TRUE        0.65   0.0833 FALSE     
-    ## 6 196697 2020-01-06 17:39:00      0.817 TRUE        0.733  0.0833 FALSE
+|    Ptt | locType | Time\_absolute      | Time\_since | off\_island |      lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------ | :------------------ | ----------: | :---------- | --------: | --------: | :---------- | ---: |
+| 196697 | p       | 2020-01-06 17:14:00 |   0.4000000 | TRUE        |        NA |        NA | TRUE        |    1 |
+| 196697 | p       | 2020-01-06 17:19:00 |   0.4833333 | TRUE        | 0.4000000 | 0.0833333 | FALSE       |    1 |
+| 196697 | p       | 2020-01-06 17:24:00 |   0.5666667 | TRUE        | 0.4833333 | 0.0833333 | FALSE       |    1 |
+| 196697 | p       | 2020-01-06 17:29:00 |   0.6500000 | TRUE        | 0.5666667 | 0.0833333 | FALSE       |    1 |
+| 196697 | p       | 2020-01-06 17:34:00 |   0.7333333 | TRUE        | 0.6500000 | 0.0833333 | FALSE       |    1 |
+| 196697 | p       | 2020-01-06 17:39:00 |   0.8166667 | TRUE        | 0.7333333 | 0.0833333 | FALSE       |    1 |
 
 ``` r
-tail(at_sea) # check that the table ends with Start_trip = TRUE
+tail(at_sea) %>% kable() # check that the table ends with Start_trip = TRUE and some higher trip number
 ```
 
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island  lag1  diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>      <dbl>  <dbl> <lgl>     
-    ## 1 196697 2020-02-26 20:09:00      1227. TRUE       1227. 0.0833 FALSE     
-    ## 2 196697 2020-02-26 20:14:00      1227. TRUE       1227. 0.0833 FALSE     
-    ## 3 196697 2020-02-26 20:19:00      1227. TRUE       1227. 0.0833 FALSE     
-    ## 4 196697 2020-02-26 20:24:00      1228. TRUE       1227. 0.0833 FALSE     
-    ## 5 196697 2020-02-26 20:29:00      1228. TRUE       1228. 0.0833 FALSE     
-    ## 6 196697 2020-02-26 20:34:00      1228. TRUE       1228. 0.0833 TRUE
+|    Ptt | locType | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------ | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
+| 196697 | p       | 2020-02-26 20:09:00 |    1227.317 | TRUE        | 1227.233 | 0.0833333 | FALSE       |   17 |
+| 196697 | p       | 2020-02-26 20:14:00 |    1227.400 | TRUE        | 1227.317 | 0.0833333 | FALSE       |   17 |
+| 196697 | p       | 2020-02-26 20:19:00 |    1227.483 | TRUE        | 1227.400 | 0.0833333 | FALSE       |   17 |
+| 196697 | p       | 2020-02-26 20:24:00 |    1227.567 | TRUE        | 1227.483 | 0.0833333 | FALSE       |   17 |
+| 196697 | p       | 2020-02-26 20:29:00 |    1227.650 | TRUE        | 1227.567 | 0.0833333 | FALSE       |   17 |
+| 196697 | p       | 2020-02-26 20:34:00 |    1227.733 | TRUE        | 1227.650 | 0.0833333 | TRUE        |   17 |
 
-Store the row numbers of each `Start_trip == TRUE` in a list which we
-will use to split by trip
+### Filter out low-speed sections of the trips - not finished
+
+I think this distance calculation is working for now but I should check
+this against Vicky’s code. I think I will also need to estimate the
+average speed over some sort of sliding window, so that I’m not cutting
+trips up too much.
 
 ``` r
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+at_sea %>% 
+  sp::spTransform(crs("+init=epsg:4326")) %>%   
+  data.frame() %>%                              
+  mutate(Distance = distHaversine(cbind(LON, LAT), 
+                                  cbind(lag(LON), lag(LAT)))) %>% 
+  filter(Time_absolute > "2020-01-20 22:40:00") %>% 
+  filter(Time_absolute < "2020-01-22 20:54:00") %>% 
+  head() %>% 
+  kable()
 ```
+
+|    Ptt | locType | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |        LON |        LAT | optional | Distance |
+| -----: | :------ | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: | ---------: | ---------: | :------- | -------: |
+| 196697 | p       | 2020-01-20 22:44:00 |    341.9000 | TRUE        | 340.4833 | 1.4166667 | TRUE        |    9 | \-26.42800 | \-57.79646 | TRUE     | 135.1728 |
+| 196697 | p       | 2020-01-20 22:49:00 |    341.9833 | TRUE        | 341.9000 | 0.0833333 | FALSE       |    9 | \-26.42683 | \-57.79542 | TRUE     | 134.7930 |
+| 196697 | p       | 2020-01-20 22:54:00 |    342.0667 | TRUE        | 341.9833 | 0.0833333 | FALSE       |    9 | \-26.42566 | \-57.79439 | TRUE     | 134.7930 |
+| 196697 | p       | 2020-01-20 22:59:00 |    342.1500 | TRUE        | 342.0667 | 0.0833333 | FALSE       |    9 | \-26.42449 | \-57.79335 | TRUE     | 134.7930 |
+| 196697 | p       | 2020-01-20 23:04:00 |    342.2333 | TRUE        | 342.1500 | 0.0833333 | FALSE       |    9 | \-26.42332 | \-57.79231 | TRUE     | 134.7931 |
+| 196697 | p       | 2020-01-20 23:09:00 |    342.3167 | TRUE        | 342.2333 | 0.0833333 | FALSE       |    9 | \-26.42214 | \-57.79127 | TRUE     | 134.7931 |
 
 Plot the trips
 
 ``` r
+# make a sequence of 1 to n where n is the number of trips
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
 seq <- c(1:(length(Start_row_indexes) -1))
+
 plots = purrr::map(seq, ~plot_trip(.x))
 
 invisible(lapply(plots, print))
 ```
 
 ![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-17.png)<!-- -->
-
-``` r
-# plot with patchwork
-#    plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + 
-#    plots[[5]] + plots[[6]] + plots[[7]] + plots[[8]] +
-#    plots[[9]] + plots[[10]] + plots[[11]] + plots[[12]] +
-#    plots[[13]] + plots[[14]] + plots[[15]] 
-```
 
 ### Penguin - 196698
 
@@ -318,48 +336,62 @@ at_sea %>%
 ``` r
 # split into trips
 at_sea <- split_into_trips(at_sea)
-head(at_sea)
+head(at_sea) %>% kable
 ```
 
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island  lag1   diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>      <dbl>   <dbl> <lgl>     
-    ## 1 196698 2020-01-08 03:57:00       35.1 TRUE        NA   NA      TRUE      
-    ## 2 196698 2020-01-08 04:02:00       35.2 TRUE        35.1  0.0833 FALSE     
-    ## 3 196698 2020-01-08 04:07:00       35.3 TRUE        35.2  0.0833 FALSE     
-    ## 4 196698 2020-01-08 04:12:00       35.4 TRUE        35.3  0.0833 FALSE     
-    ## 5 196698 2020-01-08 04:17:00       35.4 TRUE        35.4  0.0833 FALSE     
-    ## 6 196698 2020-01-08 04:22:00       35.5 TRUE        35.4  0.0833 FALSE
+|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
+| 196698 | 2020-01-08 03:57:00 |    35.11667 | TRUE        |       NA |        NA | TRUE        |    1 |
+| 196698 | 2020-01-08 04:02:00 |    35.20000 | TRUE        | 35.11667 | 0.0833333 | FALSE       |    1 |
+| 196698 | 2020-01-08 04:07:00 |    35.28333 | TRUE        | 35.20000 | 0.0833333 | FALSE       |    1 |
+| 196698 | 2020-01-08 04:12:00 |    35.36667 | TRUE        | 35.28333 | 0.0833333 | FALSE       |    1 |
+| 196698 | 2020-01-08 04:17:00 |    35.45000 | TRUE        | 35.36667 | 0.0833333 | FALSE       |    1 |
+| 196698 | 2020-01-08 04:22:00 |    35.53333 | TRUE        | 35.45000 | 0.0833333 | FALSE       |    1 |
 
 ``` r
-tail(at_sea)
+tail(at_sea) %>% kable
 ```
 
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island  lag1  diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>      <dbl>  <dbl> <lgl>     
-    ## 1 196698 2020-02-26 20:17:00      1227. TRUE       1227. 0.0833 FALSE     
-    ## 2 196698 2020-02-26 20:22:00      1228. TRUE       1227. 0.0833 FALSE     
-    ## 3 196698 2020-02-26 20:27:00      1228. TRUE       1228. 0.0833 FALSE     
-    ## 4 196698 2020-02-26 20:32:00      1228. TRUE       1228. 0.0833 FALSE     
-    ## 5 196698 2020-02-26 20:33:00      1228. TRUE       1228. 0.0167 FALSE     
-    ## 6 196698 2020-02-26 20:37:00      1228. TRUE       1228. 0.0667 TRUE
+|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
+| 196698 | 2020-02-26 20:17:00 |    1227.450 | TRUE        | 1227.367 | 0.0833333 | FALSE       |   17 |
+| 196698 | 2020-02-26 20:22:00 |    1227.533 | TRUE        | 1227.450 | 0.0833333 | FALSE       |   17 |
+| 196698 | 2020-02-26 20:27:00 |    1227.617 | TRUE        | 1227.533 | 0.0833333 | FALSE       |   17 |
+| 196698 | 2020-02-26 20:32:00 |    1227.700 | TRUE        | 1227.617 | 0.0833333 | FALSE       |   17 |
+| 196698 | 2020-02-26 20:33:00 |    1227.717 | TRUE        | 1227.700 | 0.0166667 | FALSE       |   17 |
+| 196698 | 2020-02-26 20:37:00 |    1227.783 | TRUE        | 1227.717 | 0.0666667 | TRUE        |   17 |
 
 ``` r
 # store row indexes for the start of each trip
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-```
 
-Plot each trip.
-
-``` r
 seq <- c(1:(length(Start_row_indexes) -1))
 plots = purrr::map(seq, ~plot_trip(.x))
+```
 
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+
+``` r
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-17.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-19.png)<!-- -->
 
 **Why is this last trip being cut into two? Is there a gap in the data
 for some reason? Come back to
@@ -369,6 +401,93 @@ this**
 
 ``` r
 predObj <- read.csv("predicted_tracks/196699_track.csv", stringsAsFactors = FALSE) 
+
+# select the useful columns and rename
+track <- predObj %>%  
+  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>% 
+  rename(LON = mu.x, LAT = mu.y)
+
+plot_track(track)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+``` r
+at_sea <- remove_points_on_land(track)
+
+# plot to make sure it worked
+at_sea %>% 
+    data.frame() %>% 
+    plot_track(.) 
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
+
+``` r
+at_sea <- split_into_trips(at_sea)
+head(at_sea) %>% kable()
+```
+
+|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
+| 196699 | 2020-01-07 19:43:00 |    26.88333 | TRUE        |       NA |        NA | TRUE        |    1 |
+| 196699 | 2020-01-07 19:48:00 |    26.96667 | TRUE        | 26.88333 | 0.0833333 | FALSE       |    1 |
+| 196699 | 2020-01-07 19:53:00 |    27.05000 | TRUE        | 26.96667 | 0.0833333 | FALSE       |    1 |
+| 196699 | 2020-01-07 19:58:00 |    27.13333 | TRUE        | 27.05000 | 0.0833333 | FALSE       |    1 |
+| 196699 | 2020-01-07 20:03:00 |    27.21667 | TRUE        | 27.13333 | 0.0833333 | FALSE       |    1 |
+| 196699 | 2020-01-07 20:08:00 |    27.30000 | TRUE        | 27.21667 | 0.0833333 | FALSE       |    1 |
+
+``` r
+tail(at_sea) %>% kable()
+```
+
+|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
+| 196699 | 2020-02-12 11:28:00 |    882.6333 | TRUE        | 882.5500 | 0.0833333 | FALSE       |   20 |
+| 196699 | 2020-02-12 11:33:00 |    882.7167 | TRUE        | 882.6333 | 0.0833333 | FALSE       |   20 |
+| 196699 | 2020-02-12 11:38:00 |    882.8000 | TRUE        | 882.7167 | 0.0833333 | FALSE       |   20 |
+| 196699 | 2020-02-12 11:43:00 |    882.8833 | TRUE        | 882.8000 | 0.0833333 | FALSE       |   20 |
+| 196699 | 2020-02-12 11:48:00 |    882.9667 | TRUE        | 882.8833 | 0.0833333 | FALSE       |   20 |
+| 196699 | 2020-02-12 11:52:00 |    883.0333 | TRUE        | 882.9667 | 0.0666667 | TRUE        |   20 |
+
+``` r
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+
+seq <- c(1:(length(Start_row_indexes) -1))
+plots = purrr::map(seq, ~plot_trip(.x))
+```
+
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+
+``` r
+invisible(lapply(plots, print))
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-22.png)<!-- -->
+
+### Penguin - 196707
+
+``` r
+predObj <- read.csv("predicted_tracks/196707_track.csv", stringsAsFactors = FALSE) 
 
 # select the useful columns and rename
 track <- predObj %>%  
@@ -393,117 +512,74 @@ at_sea %>%
 
 ``` r
 at_sea <- split_into_trips(at_sea)
-head(at_sea)
+head(at_sea) %>% kable()
 ```
 
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island  lag1   diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>      <dbl>   <dbl> <lgl>     
-    ## 1 196699 2020-01-07 19:43:00       26.9 TRUE        NA   NA      TRUE      
-    ## 2 196699 2020-01-07 19:48:00       27.0 TRUE        26.9  0.0833 FALSE     
-    ## 3 196699 2020-01-07 19:53:00       27.0 TRUE        27.0  0.0833 FALSE     
-    ## 4 196699 2020-01-07 19:58:00       27.1 TRUE        27.0  0.0833 FALSE     
-    ## 5 196699 2020-01-07 20:03:00       27.2 TRUE        27.1  0.0833 FALSE     
-    ## 6 196699 2020-01-07 20:08:00       27.3 TRUE        27.2  0.0833 FALSE
+|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
+| 196707 | 2020-01-07 06:56:00 |    14.10000 | TRUE        |       NA |        NA | TRUE        |    1 |
+| 196707 | 2020-01-07 07:01:00 |    14.18333 | TRUE        | 14.10000 | 0.0833333 | FALSE       |    1 |
+| 196707 | 2020-01-07 07:06:00 |    14.26667 | TRUE        | 14.18333 | 0.0833333 | FALSE       |    1 |
+| 196707 | 2020-01-07 07:11:00 |    14.35000 | TRUE        | 14.26667 | 0.0833333 | FALSE       |    1 |
+| 196707 | 2020-01-07 07:16:00 |    14.43333 | TRUE        | 14.35000 | 0.0833333 | FALSE       |    1 |
+| 196707 | 2020-01-07 07:21:00 |    14.51667 | TRUE        | 14.43333 | 0.0833333 | FALSE       |    1 |
 
 ``` r
-tail(at_sea)
+tail(at_sea) %>% kable()
 ```
 
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island  lag1  diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>      <dbl>  <dbl> <lgl>     
-    ## 1 196699 2020-02-12 11:28:00       883. TRUE        883. 0.0833 FALSE     
-    ## 2 196699 2020-02-12 11:33:00       883. TRUE        883. 0.0833 FALSE     
-    ## 3 196699 2020-02-12 11:38:00       883. TRUE        883. 0.0833 FALSE     
-    ## 4 196699 2020-02-12 11:43:00       883. TRUE        883. 0.0833 FALSE     
-    ## 5 196699 2020-02-12 11:48:00       883. TRUE        883. 0.0833 FALSE     
-    ## 6 196699 2020-02-12 11:52:00       883. TRUE        883. 0.0667 TRUE
+|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
+| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
+| 196707 | 2020-03-13 20:11:00 |    1611.350 | TRUE        | 1611.267 | 0.0833333 | FALSE       |   30 |
+| 196707 | 2020-03-13 20:16:00 |    1611.433 | TRUE        | 1611.350 | 0.0833333 | FALSE       |   30 |
+| 196707 | 2020-03-13 20:21:00 |    1611.517 | TRUE        | 1611.433 | 0.0833333 | FALSE       |   30 |
+| 196707 | 2020-03-13 20:22:00 |    1611.533 | TRUE        | 1611.517 | 0.0166667 | FALSE       |   30 |
+| 196707 | 2020-03-13 20:26:00 |    1611.600 | TRUE        | 1611.533 | 0.0666667 | FALSE       |   30 |
+| 196707 | 2020-03-13 20:31:00 |    1611.683 | TRUE        | 1611.600 | 0.0833333 | TRUE        |   30 |
 
 ``` r
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-```
 
-Plot each trip.
-
-``` r
 seq <- c(1:(length(Start_row_indexes) -1))
 plots = purrr::map(seq, ~plot_trip(.x))
+```
 
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+
+``` r
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-20.png)<!-- -->
-
-### Penguin - 196707
-
-``` r
-predObj <- read.csv("predicted_tracks/196707_track.csv", stringsAsFactors = FALSE) 
-
-# select the useful columns and rename
-track <- predObj %>%  
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>% 
-  rename(LON = mu.x, LAT = mu.y)
-
-plot_track(track)
-```
-
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
-
-``` r
-at_sea <- remove_points_on_land(track)
-
-# plot to make sure it worked
-at_sea %>% 
-    data.frame() %>% 
-    plot_track(.) 
-```
-
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
-
-``` r
-at_sea <- split_into_trips(at_sea)
-head(at_sea)
-```
-
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island  lag1   diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>      <dbl>   <dbl> <lgl>     
-    ## 1 196707 2020-01-07 06:56:00       14.1 TRUE        NA   NA      TRUE      
-    ## 2 196707 2020-01-07 07:01:00       14.2 TRUE        14.1  0.0833 FALSE     
-    ## 3 196707 2020-01-07 07:06:00       14.3 TRUE        14.2  0.0833 FALSE     
-    ## 4 196707 2020-01-07 07:11:00       14.4 TRUE        14.3  0.0833 FALSE     
-    ## 5 196707 2020-01-07 07:16:00       14.4 TRUE        14.4  0.0833 FALSE     
-    ## 6 196707 2020-01-07 07:21:00       14.5 TRUE        14.4  0.0833 FALSE
-
-``` r
-tail(at_sea)
-```
-
-    ## # A tibble: 6 x 7
-    ##      Ptt Time_absolute       Time_since off_island  lag1  diff1 Start_trip
-    ##    <int> <chr>                    <dbl> <lgl>      <dbl>  <dbl> <lgl>     
-    ## 1 196707 2020-03-13 20:11:00      1611. TRUE       1611. 0.0833 FALSE     
-    ## 2 196707 2020-03-13 20:16:00      1611. TRUE       1611. 0.0833 FALSE     
-    ## 3 196707 2020-03-13 20:21:00      1612. TRUE       1611. 0.0833 FALSE     
-    ## 4 196707 2020-03-13 20:22:00      1612. TRUE       1612. 0.0167 FALSE     
-    ## 5 196707 2020-03-13 20:26:00      1612. TRUE       1612. 0.0667 FALSE     
-    ## 6 196707 2020-03-13 20:31:00      1612. TRUE       1612. 0.0833 TRUE
-
-``` r
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-```
-
-Plot each trip.
-
-``` r
-seq <- c(1:(length(Start_row_indexes) -1))
-plots = purrr::map(seq, ~plot_trip(.x))
-
-invisible(lapply(plots, print))
-```
-
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-30.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-31.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-32.png)<!-- -->
 
 ## Questions
 

@@ -19,11 +19,12 @@ library(sp)
 library(ggplot2)
 library(knitr)
 library(spdplyr)
+library(geosphere)
 options(scipen=999)
 ```
 
 ### Load map and plot
-```{r}
+```{r warning=FALSE}
 Seamask<-readOGR("Seamask.shp")
 #SSI <- crop(Seamask, c(450000, 750000, -600000, -100000)) # the original values I used here were cropping the end of the tracks when I filtered for the points off land, so I increased the extent of this base map to prevent that
 SSI <- crop(Seamask, c(0, 1000000, -1000000, -100000))
@@ -124,13 +125,23 @@ split_into_trips <- function(at_sea) {
   at_sea2$Start_trip[1] <- TRUE
   # change the final value of Start_trip to TRUE to signal this is actually the end of the last trip
   at_sea2[length(at_sea2), "Start_trip"] <- TRUE
+  # record where each trip begins
+  Start_row_indexes <- as.list(which(at_sea2$Start_trip == TRUE))
+  # make a sequence from 1 to the number of trips
+  seq <- c(1:(length(Start_row_indexes) -1))
+  # add a column that records the trip number in the dataframe
+  at_sea2$Trip <-
+    purrr::map(seq, ~rep(.x, each = (Start_row_indexes[[.x + 1]] - (Start_row_indexes[[.x]])))) %>% 
+    unlist() %>%
+    append(., values = tail(., n=1))
   return(at_sea2)
 }
+
 
 ```
 
 ### Function for plotting the trips
-This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip. This is not idea but will do for now.
+This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip. This is not ideal but will do for now.
 ```{r}
 plot_trip <- function(x) {
   ggplot() +
@@ -172,13 +183,9 @@ predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALS
 
 # select the useful columns and rename
 track <- predObj %>%  
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>% 
+  select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>% 
   rename(LON = mu.x, LAT = mu.y)
-```
 
-
-Plot the raw track
-```{r}
 plot_track(track)
 ```
 
@@ -197,30 +204,42 @@ at_sea %>%
 Split into trips.
 ```{r}
 at_sea <- split_into_trips(at_sea)
-head(at_sea) # check that the table starts with Start_trip = TRUE
-tail(at_sea) # check that the table ends with Start_trip = TRUE
+head(at_sea) %>% kable() # check that the table starts with Start_trip = TRUE and trip number 1
+tail(at_sea) %>% kable() # check that the table ends with Start_trip = TRUE and some higher trip number
 ```
 
 
-Store the row numbers of each ```Start_trip == TRUE``` in a list which we will use to split by trip
+
+### Filter out low-speed sections of the trips - not finished
+I think this distance calculation is working for now but I should check this against Vicky's code. I think I will also need to estimate the average speed over some sort of sliding window, so that I'm not cutting trips up too much.
+
+
 ```{r}
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+at_sea %>% 
+  sp::spTransform(crs("+init=epsg:4326")) %>%   
+  data.frame() %>%                              
+  mutate(Distance = distHaversine(cbind(LON, LAT), 
+                                  cbind(lag(LON), lag(LAT)))) %>% 
+  filter(Time_absolute > "2020-01-20 22:40:00") %>% 
+  filter(Time_absolute < "2020-01-22 20:54:00") %>% 
+  head() %>% 
+  kable()
+  
 ```
 
 
 Plot the trips
 ```{r, message=FALSE}
+# make a sequence of 1 to n where n is the number of trips
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
 seq <- c(1:(length(Start_row_indexes) -1))
+
 plots = purrr::map(seq, ~plot_trip(.x))
 
 invisible(lapply(plots, print))
 
-# plot with patchwork
-#    plots[[1]] + plots[[2]] + plots[[3]] + plots[[4]] + 
-#    plots[[5]] + plots[[6]] + plots[[7]] + plots[[8]] +
-#    plots[[9]] + plots[[10]] + plots[[11]] + plots[[12]] +
-#    plots[[13]] + plots[[14]] + plots[[15]] 
 ```
+
 
 ### Penguin - 196698
 
@@ -244,16 +263,11 @@ at_sea %>%
 
 # split into trips
 at_sea <- split_into_trips(at_sea)
-head(at_sea)
-tail(at_sea)
+head(at_sea) %>% kable
+tail(at_sea) %>% kable
 
 # store row indexes for the start of each trip
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-```
-
-
-Plot each trip.
-```{r, message=FALSE}
 
 seq <- c(1:(length(Start_row_indexes) -1))
 plots = purrr::map(seq, ~plot_trip(.x))
@@ -261,6 +275,7 @@ plots = purrr::map(seq, ~plot_trip(.x))
 invisible(lapply(plots, print))
 
 ```
+
 
 **Why is this last trip being cut into two? Is there a gap in the data for some reason? Come back to this**
 
@@ -285,14 +300,10 @@ at_sea %>%
     plot_track(.) 
 
 at_sea <- split_into_trips(at_sea)
-head(at_sea)
-tail(at_sea)
+head(at_sea) %>% kable()
+tail(at_sea) %>% kable()
 
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-```
-
-Plot each trip.
-```{r, message=FALSE}
 
 seq <- c(1:(length(Start_row_indexes) -1))
 plots = purrr::map(seq, ~plot_trip(.x))
@@ -322,14 +333,10 @@ at_sea %>%
     plot_track(.) 
 
 at_sea <- split_into_trips(at_sea)
-head(at_sea)
-tail(at_sea)
+head(at_sea) %>% kable()
+tail(at_sea) %>% kable()
 
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-```
-
-Plot each trip.
-```{r, message=FALSE}
 
 seq <- c(1:(length(Start_row_indexes) -1))
 plots = purrr::map(seq, ~plot_trip(.x))
@@ -337,6 +344,8 @@ plots = purrr::map(seq, ~plot_trip(.x))
 invisible(lapply(plots, print))
 
 ```
+
+
 
 ## Questions
 
