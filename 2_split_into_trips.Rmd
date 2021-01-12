@@ -27,7 +27,8 @@ options(scipen=999)
 ```{r warning=FALSE}
 Seamask<-readOGR("Seamask.shp")
 #SSI <- crop(Seamask, c(450000, 750000, -600000, -100000)) # the original values I used here were cropping the end of the tracks when I filtered for the points off land, so I increased the extent of this base map to prevent that
-SSI <- crop(Seamask, c(0, 1000000, -1000000, -100000))
+# NB you can find the maximal extent of Seamask with extent(Seamask)
+SSI <- crop(Seamask, c(450000, 1095192, -795043.9, -100000))
 
 #Re-project to Lambert Azimuthal Equal Area
 SSI_laea<-spTransform(SSI, CRS=CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
@@ -276,18 +277,17 @@ tail(at_sea) %>% kable
 
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
+# create plots for each trip
 plots <- at_sea %>% 
-  data.frame() %>%                  # convert to dataframe
+  data.frame() %>%                  # convert at_sea to dataframe
   distinct(Trip) %>%                # find number of trips
   deframe() %>%                     # change to vector to pass to map
   purrr::map(., ~plot_trip(.x))
 
+#plot
 invisible(lapply(plots, print))
 
 ```
-
-
-**Why is this last trip being cut into two? Is there a gap in the data for some reason? Come back to this**
 
 
 ### Penguin - 196699
