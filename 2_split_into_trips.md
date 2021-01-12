@@ -18,6 +18,7 @@ library(ggplot2)
 library(knitr)
 library(spdplyr)
 library(geosphere)
+library(slider)
 options(scipen=999)
 ```
 
@@ -34,7 +35,8 @@ Seamask<-readOGR("Seamask.shp")
 
 ``` r
 #SSI <- crop(Seamask, c(450000, 750000, -600000, -100000)) # the original values I used here were cropping the end of the tracks when I filtered for the points off land, so I increased the extent of this base map to prevent that
-SSI <- crop(Seamask, c(0, 1000000, -1000000, -100000))
+# NB you can find the maximal extent of Seamask with extent(Seamask)
+SSI <- crop(Seamask, c(450000, 1095192, -795043.9, -100000))
 ```
 
     ## x[i, ] is invalid
@@ -104,7 +106,7 @@ remove_points_on_land <- function(track) {
 }
 ```
 
-### Split into trips
+### Function to split into trips
 
 First create a function for offsetting the values in a column by 1 row
 (or more if you change `shiftLen`). This is needed to later calculate
@@ -131,9 +133,12 @@ of the buffer zone.
 Each time there is a lag greater than x minutes, we get a `Start_trip =
 TRUE` in the `at_sea` spatial object, otherwise `Start_trip = FALSE`.
 
-In order to plot the final trip, I need to fudge the final line of
+In order to record the final trip, I need to fudge the final line of
 `at_sea` and give it `Start_Trip == TRUE` so that I can use
 Start\_row\_indexes to plot this final trip.
+
+The row indexes of where these `TRUE` values occur are then used to add
+a column that records the trip number in the dataframe.
 
 ``` r
 split_into_trips <- function(at_sea) {
@@ -155,9 +160,11 @@ split_into_trips <- function(at_sea) {
   seq <- c(1:(length(Start_row_indexes) -1))
   # add a column that records the trip number in the dataframe
   at_sea2$Trip <-
+    # this code takes the numbers in seq and repeats each for the number of rows between 
+    # the start of trip n+1 and trip n (i.e. the length of the current trip)
     purrr::map(seq, ~rep(.x, each = (Start_row_indexes[[.x + 1]] - (Start_row_indexes[[.x]])))) %>% 
-    unlist() %>%
-    append(., values = tail(., n=1))
+    unlist() %>%    # the result has to be changed from a list to a vector
+    append(., values = tail(., n=1))    # and this repeats the last trip number once more and appends to the vector, otherwise it missed the last row
   return(at_sea2)
 }
 ```
@@ -168,7 +175,10 @@ This function takes a sequence of numbers corresponding to the number of
 `Start_trip == TRUE` in the object `at_sea` to split the dataframe up
 into trips and plot each indiviudally. The function will resize the map
 according to the min and max longitude and latitude for each trip. This
-is not idea but will do for now.
+is not ideal but will do for now.
+
+Note, now that I am recording the trip number in `at_sea` I could use
+facting to plot the trips instead, probably. Maybe do this later.
 
 ``` r
 plot_trip <- function(x) {
@@ -213,15 +223,11 @@ predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALS
 track <- predObj %>%  
   select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>% 
   rename(LON = mu.x, LAT = mu.y)
-```
 
-Plot the raw track
-
-``` r
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 Remove points on land and replot to make sure nothing has gone wrong.
 
@@ -233,7 +239,7 @@ at_sea %>%
     plot_track(.) 
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 Split into trips.
 
@@ -266,40 +272,79 @@ tail(at_sea) %>% kable() # check that the table ends with Start_trip = TRUE and 
 
 ### Filter out low-speed sections of the trips - not finished
 
-I think this distance calculation is working for now but I should check
-this against Vicky’s code. I think I will also need to estimate the
-average speed over some sort of sliding window, so that I’m not cutting
-trips up too much.
+The `distHaversine()` function gives the same estimates of distance as
+the code Vicky sent over, but it runs a bit faster.
+
+I am estimating the average speed over a sliding window of 3 hours at
+the mo, so that I’m not filtering out times when the birds are resting
+between dives. Take a look at this further - there are some times when
+the speed is either NaN or Inf because an observation and predicted
+location occur at exactly the same time - nudge times to be off by a few
+seconds when this occurs?
+
+Decide on a cut-off for getting rid of these duff points - is 3 hours a
+long enough window? looks like 0.6 kph might be a good minimum avg
+speed, but keep eyeballing the data more to work out whether this is
+good.
+
+According to Culick et al (1994), the preferred swimming speeds of
+chinstrap penguins are 2.4 m/s, which is 8.6 kph.
 
 ``` r
-at_sea %>% 
+at_sea_df <- at_sea %>% 
   sp::spTransform(crs("+init=epsg:4326")) %>%   
   data.frame() %>%                              
-  mutate(Distance = distHaversine(cbind(LON, LAT), 
-                                  cbind(lag(LON), lag(LAT)))) %>% 
-  filter(Time_absolute > "2020-01-20 22:40:00") %>% 
-  filter(Time_absolute < "2020-01-22 20:54:00") %>% 
-  head() %>% 
-  kable()
+  mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+  mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+  mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+  mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+
+  # filter(Time_absolute > "2020-01-20 22:40:00") %>% 
+  # filter(Time_absolute < "2020-01-22 20:54:00") %>% 
+  # head()
 ```
 
-|    Ptt | locType | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |        LON |        LAT | optional | Distance |
-| -----: | :------ | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: | ---------: | ---------: | :------- | -------: |
-| 196697 | p       | 2020-01-20 22:44:00 |    341.9000 | TRUE        | 340.4833 | 1.4166667 | TRUE        |    9 | \-26.42800 | \-57.79646 | TRUE     | 135.1728 |
-| 196697 | p       | 2020-01-20 22:49:00 |    341.9833 | TRUE        | 341.9000 | 0.0833333 | FALSE       |    9 | \-26.42683 | \-57.79542 | TRUE     | 134.7930 |
-| 196697 | p       | 2020-01-20 22:54:00 |    342.0667 | TRUE        | 341.9833 | 0.0833333 | FALSE       |    9 | \-26.42566 | \-57.79439 | TRUE     | 134.7930 |
-| 196697 | p       | 2020-01-20 22:59:00 |    342.1500 | TRUE        | 342.0667 | 0.0833333 | FALSE       |    9 | \-26.42449 | \-57.79335 | TRUE     | 134.7930 |
-| 196697 | p       | 2020-01-20 23:04:00 |    342.2333 | TRUE        | 342.1500 | 0.0833333 | FALSE       |    9 | \-26.42332 | \-57.79231 | TRUE     | 134.7931 |
-| 196697 | p       | 2020-01-20 23:09:00 |    342.3167 | TRUE        | 342.2333 | 0.0833333 | FALSE       |    9 | \-26.42214 | \-57.79127 | TRUE     | 134.7931 |
+``` r
+# # Vicky's code gives same result. Note I modified the radius of the earth from 6371 km to 6363, which is the radius at 57.7 South.
+# x2 <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>% 
+#   rename(Lat.x = LAT, Lon.x = LON)
+# 
+# # determine distance from previous GPS position (gives distance in km)
+# x2$Distance <- 0    #x2 was the dataframe
+# for (j in 2:length(x2$Distance))
+# { previous_lat <- x2[j-1,"Lat.x"]
+# previous_lon <- x2[j-1,"Lon.x"]
+# position_lat <- x2[j,"Lat.x"]
+# position_lon <- x2[j,"Lon.x"]
+# x2[j,"Distance"] <- acos(cos(((90-previous_lat)*pi)/180) * cos(((90-position_lat)*pi)/180) + sin(((90-previous_lat)*pi)/180) * sin(((90-position_lat)*pi)/180) * cos(((position_lon-previous_lon)*pi)/180)) * 6363
+# }
+#  
+# # determine speed for each position
+# x2$Speed <- 0
+# for (j in 2:length(x2$Speed))
+# { x2[j,"Speed"] <- x2[j,"Distance"] / as.numeric((x2[j,"Time_since"] - x2[j-1,"Time_since"]), units="hours")
+# }
+# 
+# x2 %>% filter(Time_absolute > "2020-01-20 22:40:00") %>% 
+#   filter(Time_absolute < "2020-01-22 20:54:00") %>% 
+#   head()
+```
 
-Plot the trips
+Plot the
+trips
 
 ``` r
-# make a sequence of 1 to n where n is the number of trips
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-seq <- c(1:(length(Start_row_indexes) -1))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-plots = purrr::map(seq, ~plot_trip(.x))
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
 ```
@@ -354,19 +399,22 @@ tail(at_sea) %>% kable
 
 |    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
 | -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196698 | 2020-02-26 20:17:00 |    1227.450 | TRUE        | 1227.367 | 0.0833333 | FALSE       |   17 |
-| 196698 | 2020-02-26 20:22:00 |    1227.533 | TRUE        | 1227.450 | 0.0833333 | FALSE       |   17 |
-| 196698 | 2020-02-26 20:27:00 |    1227.617 | TRUE        | 1227.533 | 0.0833333 | FALSE       |   17 |
-| 196698 | 2020-02-26 20:32:00 |    1227.700 | TRUE        | 1227.617 | 0.0833333 | FALSE       |   17 |
-| 196698 | 2020-02-26 20:33:00 |    1227.717 | TRUE        | 1227.700 | 0.0166667 | FALSE       |   17 |
-| 196698 | 2020-02-26 20:37:00 |    1227.783 | TRUE        | 1227.717 | 0.0666667 | TRUE        |   17 |
+| 196698 | 2020-02-26 20:17:00 |    1227.450 | TRUE        | 1227.367 | 0.0833333 | FALSE       |   16 |
+| 196698 | 2020-02-26 20:22:00 |    1227.533 | TRUE        | 1227.450 | 0.0833333 | FALSE       |   16 |
+| 196698 | 2020-02-26 20:27:00 |    1227.617 | TRUE        | 1227.533 | 0.0833333 | FALSE       |   16 |
+| 196698 | 2020-02-26 20:32:00 |    1227.700 | TRUE        | 1227.617 | 0.0833333 | FALSE       |   16 |
+| 196698 | 2020-02-26 20:33:00 |    1227.717 | TRUE        | 1227.700 | 0.0166667 | FALSE       |   16 |
+| 196698 | 2020-02-26 20:37:00 |    1227.783 | TRUE        | 1227.717 | 0.0666667 | TRUE        |   16 |
 
 ``` r
-# store row indexes for the start of each trip
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-seq <- c(1:(length(Start_row_indexes) -1))
-plots = purrr::map(seq, ~plot_trip(.x))
+# create plots for each trip
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert at_sea to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 ```
 
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
@@ -385,17 +433,13 @@ plots = purrr::map(seq, ~plot_trip(.x))
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
 
 ``` r
+#plot
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-19.png)<!-- -->
-
-**Why is this last trip being cut into two? Is there a gap in the data
-for some reason? Come back to
-this**
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-18.png)<!-- -->
 
 ### Penguin - 196699
 
@@ -451,10 +495,13 @@ tail(at_sea) %>% kable()
 | 196699 | 2020-02-12 11:52:00 |    883.0333 | TRUE        | 882.9667 | 0.0666667 | TRUE        |   20 |
 
 ``` r
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-seq <- c(1:(length(Start_row_indexes) -1))
-plots = purrr::map(seq, ~plot_trip(.x))
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 ```
 
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
@@ -538,10 +585,13 @@ tail(at_sea) %>% kable()
 | 196707 | 2020-03-13 20:31:00 |    1611.683 | TRUE        | 1611.600 | 0.0833333 | TRUE        |   30 |
 
 ``` r
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-seq <- c(1:(length(Start_row_indexes) -1))
-plots = purrr::map(seq, ~plot_trip(.x))
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 ```
 
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
