@@ -91,7 +91,7 @@ remove_points_on_land <- function(track) {
 
 ```
 
-### Split into trips 
+### Function to split into trips 
 
 First create a function for offsetting the values in a column by 1 row (or more if you change ```shiftLen```). This is needed to later calculate the lag time between each point.
 ```{r}
@@ -108,9 +108,11 @@ Then we calculate the lag time between each point. If there is a lag longer than
 
 I still want to play around with the best lag time to use (30 mins maybe?), in case the bird was foraging or hanging out just at the edge of the buffer zone.
 
-Each time there is a lag greater than x minutes, we get a ```Start_trip = TRUE``` in the ```at_sea``` spatial object, otherwise ```Start_trip = FALSE```.
+Each time there is a lag greater than x minutes, we get a ```Start_trip = TRUE``` in the ```at_sea``` spatial object, otherwise ```Start_trip = FALSE```. 
 
-In order to plot the final trip, I need to fudge the final line of ```at_sea``` and give it ```Start_Trip == TRUE``` so that I can use Start_row_indexes to plot this final trip.
+In order to record the final trip, I need to fudge the final line of ```at_sea``` and give it ```Start_Trip == TRUE``` so that I can use Start_row_indexes to plot this final trip.
+
+The row indexes of where these ```TRUE``` values occur are then used to add a column that records the trip number in the dataframe.
 ```{r}
 split_into_trips <- function(at_sea) {
   # offset the values in Time_since by 1 row 
@@ -131,9 +133,11 @@ split_into_trips <- function(at_sea) {
   seq <- c(1:(length(Start_row_indexes) -1))
   # add a column that records the trip number in the dataframe
   at_sea2$Trip <-
+    # this code takes the numbers in seq and repeats each for the number of rows between 
+    # the start of trip n+1 and trip n (i.e. the length of the current trip)
     purrr::map(seq, ~rep(.x, each = (Start_row_indexes[[.x + 1]] - (Start_row_indexes[[.x]])))) %>% 
-    unlist() %>%
-    append(., values = tail(., n=1))
+    unlist() %>%    # the result has to be changed from a list to a vector
+    append(., values = tail(., n=1))    # and this repeats the last trip number once more and appends to the vector, otherwise it missed the last row
   return(at_sea2)
 }
 
@@ -142,6 +146,8 @@ split_into_trips <- function(at_sea) {
 
 ### Function for plotting the trips
 This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip. This is not ideal but will do for now.
+
+Note, now that I am recording the trip number in ```at_sea``` I could use facting to plot the trips instead, probably. Maybe do this later.
 ```{r}
 plot_trip <- function(x) {
   ggplot() +
@@ -230,11 +236,13 @@ at_sea %>%
 
 Plot the trips
 ```{r, message=FALSE}
-# make a sequence of 1 to n where n is the number of trips
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
-seq <- c(1:(length(Start_row_indexes) -1))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-plots = purrr::map(seq, ~plot_trip(.x))
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
 
@@ -266,11 +274,13 @@ at_sea <- split_into_trips(at_sea)
 head(at_sea) %>% kable
 tail(at_sea) %>% kable
 
-# store row indexes for the start of each trip
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-seq <- c(1:(length(Start_row_indexes) -1))
-plots = purrr::map(seq, ~plot_trip(.x))
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
 
@@ -303,12 +313,16 @@ at_sea <- split_into_trips(at_sea)
 head(at_sea) %>% kable()
 tail(at_sea) %>% kable()
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-seq <- c(1:(length(Start_row_indexes) -1))
-plots = purrr::map(seq, ~plot_trip(.x))
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
+
 
 ```
 
@@ -336,12 +350,16 @@ at_sea <- split_into_trips(at_sea)
 head(at_sea) %>% kable()
 tail(at_sea) %>% kable()
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))
+Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
-seq <- c(1:(length(Start_row_indexes) -1))
-plots = purrr::map(seq, ~plot_trip(.x))
+plots <- at_sea %>% 
+  data.frame() %>%                  # convert to dataframe
+  distinct(Trip) %>%                # find number of trips
+  deframe() %>%                     # change to vector to pass to map
+  purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
+
 
 ```
 
