@@ -184,6 +184,38 @@ plot_trip <- function(x) {
 
 ```
 
+### Function for plotting average speed
+The ```distHaversine()``` function gives the same estimates of distance as the code Vicky sent over, but it runs a bit faster.
+
+I am estimating the average speed over a sliding window of 3 hours at the mo, so that I'm not filtering out times when the birds are resting between dives. There are some times when the speed is either NaN or Inf because an observation and predicted location occur at exactly the same time. At this stage I don't want to go all the way back and shift the times, as I don't want to mess up the predicted tracks, so for the purposes of just working out the speed, I will filter out the times when both time stamps are identical using ```distinct()``` from dplyr.
+
+According to Culick et al (1994), the preferred swimming speeds of chinstrap penguins are 2.4 m/s, which is 8.6 kph.
+
+At the moment average speed is calculated in 3 hour windows. This takes the SpatialPointsDataFrame ```at_sea``` which has always been filtered to keep only points off the island.
+
+```{r}
+plot_avg_speed <- function(x){
+  x %>% 
+    sp::spTransform(crs("+init=epsg:4326")) %>%
+    data.frame() %>%
+    dplyr::distinct(Time_absolute, .keep_all = TRUE) %>%                            # remove duplicated times
+    dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # calculate distance between current and previous point in meters
+                                           p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+                                           r = 6362895)) %>%                        # r = radius of earth in meters at 57.7 South
+    dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                        # gives speed in m/s since diff1 is in decimal hours
+    dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                         # speed in km per hour
+    dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 35)) %>%  # calculate average speed for the previous 3 hours
+    dplyr::slice(which(row_number() %% 36 == 1)) %>%                                # Take every 36th row of the dataframe to speed up plotting
+    ggplot(aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +                        # Plot
+    geom_line() +
+    xlab("") +
+    scale_y_continuous(breaks=seq(0,10,0.5)) +
+    geom_hline(yintercept=1,
+               linetype="dashed",
+               color = "red")
+}
+
+```
 
 ### Penguin - 196697
 
@@ -220,37 +252,11 @@ at_sea <- split_into_trips(at_sea)
 
 
 
-### Filter out low-speed sections of the trips - not finished
-The ```distHaversine()``` function gives the same estimates of distance as the code Vicky sent over, but it runs a bit faster.
-
-I am estimating the average speed over a sliding window of 3 hours at the mo, so that I'm not filtering out times when the birds are resting between dives. There are some times when the speed is either NaN or Inf because an observation and predicted location occur at exactly the same time. At this stage I don't want to go all the way back and shift the times, as I don't want to mess up the predicted tracks, so for the purposes of just working out the speed, I will filter out the times when both time stamps are identical using ```distinct()``` from dplyr.
-
-Decide on a cut-off for getting rid of these duff points - is 3 hours a long enough window? looks like 0.6 kph might be a good minimum avg speed, but keep eyeballing the data more to work out whether this is good.
-
-According to Culick et al (1994), the preferred swimming speeds of chinstrap penguins are 2.4 m/s, which is 8.6 kph.
-
-
+Plot the average speed
 ```{r}
-at_sea_df <- at_sea %>%
-  sp::spTransform(crs("+init=epsg:4326")) %>%
-  data.frame() %>%
-  dplyr::distinct(Time_absolute, .keep_all = TRUE) %>%
-  dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-  dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-  dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-  dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-
-# Plot the average speed over time
-ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-  geom_line() +
-  xlab("") +
-  scale_y_continuous(breaks=seq(0,10,0.5)) +
-  geom_hline(yintercept=1,
-             linetype="dashed",
-             color = "red")
+plot_avg_speed(at_sea)
 ```
+
 It looks like 1 kph might be a good cut-off to use from this plot, although there are maybe two instances when the average speed is stable and just over 1kph. Check with other individuals.
 
 
@@ -294,6 +300,8 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
+plot_avg_speed(at_sea)
+
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
 # create plots for each trip
@@ -308,28 +316,6 @@ invisible(lapply(plots, print))
 
 ```
 
-Plot speed
-```{r}
-# at_sea_df <- at_sea %>% 
-#   sp::spTransform(crs("+init=epsg:4326")) %>%   
-#   data.frame() %>%
-#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-# 
-# # Plot the average speed over time
-# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-#   geom_line() + 
-#   xlab("") + 
-#   scale_y_continuous(breaks=seq(0,10,0.5)) +
-#   geom_hline(yintercept=1, 
-#              linetype="dashed", 
-#              color = "red")
-```
 
 ### Penguin - 196699
 
@@ -354,6 +340,12 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable()
 # tail(at_sea) %>% kable()
 
+plot_avg_speed(at_sea)
+```
+
+Maybe a cut-off of something slightly above one is needed here?
+
+```{r,  message=FALSE, warning=FALSE}
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
 plots <- at_sea %>% 
@@ -368,29 +360,6 @@ invisible(lapply(plots, print))
 ```
 
 
-Plot speed
-```{r}
-# at_sea_df <- at_sea %>% 
-#   sp::spTransform(crs("+init=epsg:4326")) %>%   
-#   data.frame() %>%
-#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-# 
-# # Plot the average speed over time
-# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-#   geom_line() + 
-#   xlab("") + 
-#   scale_y_continuous(breaks=seq(0,10,0.5)) +
-#   geom_hline(yintercept=1, 
-#              linetype="dashed", 
-#              color = "red")
-```
-Maybe a cut-off of something slightly above one is needed here?
 
 
 ### Penguin - 196707
@@ -416,6 +385,12 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable()
 # tail(at_sea) %>% kable()
 
+plot_avg_speed(at_sea)
+```
+
+
+```{r,  message=FALSE, warning=FALSE}
+
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
 plots <- at_sea %>% 
@@ -428,33 +403,6 @@ invisible(lapply(plots, print))
 
 
 ```
-
-
-Plot speed
-```{r}
-# at_sea_df <- at_sea %>% 
-#   sp::spTransform(crs("+init=epsg:4326")) %>%   
-#   data.frame() %>%
-#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-# 
-# #slice(which(row_number() %% 5 == 1))
-# 
-# # Plot the average speed over time
-# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-#   geom_line() + 
-#   xlab("") + 
-#   scale_y_continuous(breaks=seq(0,10,0.5)) +
-#   geom_hline(yintercept=1, 
-#              linetype="dashed", 
-#              color = "red")
-```
-
 
 
 
