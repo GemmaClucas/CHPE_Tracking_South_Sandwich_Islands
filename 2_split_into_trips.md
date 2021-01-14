@@ -201,15 +201,8 @@ plot_trip <- function(x) {
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue"),
           legend.title = element_blank()) +
-    # # size according to the dimensions of the trip - this is not ideal
-    # coord_fixed(ratio = 1,
-    #             xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
-    #                      data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
-    #             ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
-    #                      data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
-    #             expand = TRUE,
-    #             clip = "on") 
-  # size according to the dimensions of the trip - this is not ideal
+    # size according to the dimensions of the trip
+    # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
     coord_fixed(ratio = 1,
                 xlim = c(min(c(-33000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min())),
                          max(c(-22000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()))),
@@ -255,30 +248,9 @@ Split into trips.
 
 ``` r
 at_sea <- split_into_trips(at_sea)
-head(at_sea) %>% kable() # check that the table starts with Start_trip = TRUE and trip number 1
+#head(at_sea) %>% kable() # check that the table starts with Start_trip = TRUE and trip number 1
+#tail(at_sea) %>% kable() # check that the table ends with Start_trip = TRUE and some higher trip number
 ```
-
-|    Ptt | locType | Time\_absolute      | Time\_since | off\_island |      lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------ | :------------------ | ----------: | :---------- | --------: | --------: | :---------- | ---: |
-| 196697 | p       | 2020-01-06 17:14:00 |   0.4000000 | TRUE        |        NA |        NA | TRUE        |    1 |
-| 196697 | p       | 2020-01-06 17:19:00 |   0.4833333 | TRUE        | 0.4000000 | 0.0833333 | FALSE       |    1 |
-| 196697 | p       | 2020-01-06 17:24:00 |   0.5666667 | TRUE        | 0.4833333 | 0.0833333 | FALSE       |    1 |
-| 196697 | p       | 2020-01-06 17:29:00 |   0.6500000 | TRUE        | 0.5666667 | 0.0833333 | FALSE       |    1 |
-| 196697 | p       | 2020-01-06 17:34:00 |   0.7333333 | TRUE        | 0.6500000 | 0.0833333 | FALSE       |    1 |
-| 196697 | p       | 2020-01-06 17:39:00 |   0.8166667 | TRUE        | 0.7333333 | 0.0833333 | FALSE       |    1 |
-
-``` r
-tail(at_sea) %>% kable() # check that the table ends with Start_trip = TRUE and some higher trip number
-```
-
-|    Ptt | locType | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------ | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196697 | p       | 2020-02-26 20:09:00 |    1227.317 | TRUE        | 1227.233 | 0.0833333 | FALSE       |   17 |
-| 196697 | p       | 2020-02-26 20:14:00 |    1227.400 | TRUE        | 1227.317 | 0.0833333 | FALSE       |   17 |
-| 196697 | p       | 2020-02-26 20:19:00 |    1227.483 | TRUE        | 1227.400 | 0.0833333 | FALSE       |   17 |
-| 196697 | p       | 2020-02-26 20:24:00 |    1227.567 | TRUE        | 1227.483 | 0.0833333 | FALSE       |   17 |
-| 196697 | p       | 2020-02-26 20:29:00 |    1227.650 | TRUE        | 1227.567 | 0.0833333 | FALSE       |   17 |
-| 196697 | p       | 2020-02-26 20:34:00 |    1227.733 | TRUE        | 1227.650 | 0.0833333 | TRUE        |   17 |
 
 ### Filter out low-speed sections of the trips - not finished
 
@@ -303,59 +275,33 @@ According to Culick et al (1994), the preferred swimming speeds of
 chinstrap penguins are 2.4 m/s, which is 8.6 kph.
 
 ``` r
-# at_sea_df <- at_sea %>% 
-#   sp::spTransform(crs("+init=epsg:4326")) %>%   
-#   data.frame() %>%
-#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-# 
-# # Plot the average speed over time
-# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-#   geom_line() + 
-#   xlab("") + 
-#   scale_y_continuous(breaks=seq(0,10,0.5)) +
-#   geom_hline(yintercept=1, 
-#              linetype="dashed", 
-#              color = "red")
+at_sea_df <- at_sea %>%
+  sp::spTransform(crs("+init=epsg:4326")) %>%
+  data.frame() %>%
+  dplyr::distinct(Time_absolute, .keep_all = TRUE) %>%
+  dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+  dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+  dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+  dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+
+# Plot the average speed over time
+ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+  geom_line() +
+  xlab("") +
+  scale_y_continuous(breaks=seq(0,10,0.5)) +
+  geom_hline(yintercept=1,
+             linetype="dashed",
+             color = "red")
 ```
 
+    ## Warning: Removed 37 rows containing missing values (geom_path).
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 It looks like 1 kph might be a good cut-off to use from this plot,
 although there are maybe two instances when the average speed is stable
-and just over 1kph. Check with other
-individuals.
-
-``` r
-# # Vicky's code gives same result. Note I modified the radius of the earth from 6371 km to 6363, which is the radius at 57.7 South.
-# x2 <- at_sea %>% 
-#   sp::spTransform(crs("+init=epsg:4326")) %>%   
-#   data.frame() %>% 
-#   rename(Lat.x = LAT, Lon.x = LON)
-# 
-# # determine distance from previous GPS position (gives distance in km)
-# x2$Distance <- 0    #x2 was the dataframe
-# for (j in 2:length(x2$Distance))
-# { previous_lat <- x2[j-1,"Lat.x"]
-# previous_lon <- x2[j-1,"Lon.x"]
-# position_lat <- x2[j,"Lat.x"]
-# position_lon <- x2[j,"Lon.x"]
-# x2[j,"Distance"] <- acos(cos(((90-previous_lat)*pi)/180) * cos(((90-position_lat)*pi)/180) + sin(((90-previous_lat)*pi)/180) * sin(((90-position_lat)*pi)/180) * cos(((position_lon-previous_lon)*pi)/180)) * 6363
-# }
-#  
-# # determine speed for each position
-# x2$Speed <- 0
-# for (j in 2:length(x2$Speed))
-# { x2[j,"Speed"] <- x2[j,"Distance"] / as.numeric((x2[j,"Time_since"] - x2[j-1,"Time_since"]), units="hours")
-# }
-# 
-# x2 %>% filter(Time_absolute > "2020-01-20 22:40:00") %>% 
-#   filter(Time_absolute < "2020-01-22 20:54:00") %>% 
-#   head()
-```
+and just over 1kph. Check with other individuals.
 
 Plot the
 trips
@@ -372,7 +318,7 @@ plots <- at_sea %>%
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-17.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-17.png)<!-- -->
 
 ### Penguin - 196698
 
@@ -387,7 +333,7 @@ track <- predObj %>%
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
 # remove points on land
@@ -399,37 +345,14 @@ at_sea %>%
     plot_track(.) 
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
 
 ``` r
 # split into trips
 at_sea <- split_into_trips(at_sea)
-head(at_sea) %>% kable
-```
+# head(at_sea) %>% kable
+# tail(at_sea) %>% kable
 
-|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196698 | 2020-01-08 03:57:00 |    35.11667 | TRUE        |       NA |        NA | TRUE        |    1 |
-| 196698 | 2020-01-08 04:02:00 |    35.20000 | TRUE        | 35.11667 | 0.0833333 | FALSE       |    1 |
-| 196698 | 2020-01-08 04:07:00 |    35.28333 | TRUE        | 35.20000 | 0.0833333 | FALSE       |    1 |
-| 196698 | 2020-01-08 04:12:00 |    35.36667 | TRUE        | 35.28333 | 0.0833333 | FALSE       |    1 |
-| 196698 | 2020-01-08 04:17:00 |    35.45000 | TRUE        | 35.36667 | 0.0833333 | FALSE       |    1 |
-| 196698 | 2020-01-08 04:22:00 |    35.53333 | TRUE        | 35.45000 | 0.0833333 | FALSE       |    1 |
-
-``` r
-tail(at_sea) %>% kable
-```
-
-|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196698 | 2020-02-26 20:17:00 |    1227.450 | TRUE        | 1227.367 | 0.0833333 | FALSE       |   16 |
-| 196698 | 2020-02-26 20:22:00 |    1227.533 | TRUE        | 1227.450 | 0.0833333 | FALSE       |   16 |
-| 196698 | 2020-02-26 20:27:00 |    1227.617 | TRUE        | 1227.533 | 0.0833333 | FALSE       |   16 |
-| 196698 | 2020-02-26 20:32:00 |    1227.700 | TRUE        | 1227.617 | 0.0833333 | FALSE       |   16 |
-| 196698 | 2020-02-26 20:33:00 |    1227.717 | TRUE        | 1227.700 | 0.0166667 | FALSE       |   16 |
-| 196698 | 2020-02-26 20:37:00 |    1227.783 | TRUE        | 1227.717 | 0.0666667 | TRUE        |   16 |
-
-``` r
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
 # create plots for each trip
@@ -438,31 +361,12 @@ plots <- at_sea %>%
   distinct(Trip) %>%                # find number of trips
   deframe() %>%                     # change to vector to pass to map
   purrr::map(., ~plot_trip(.x))
-```
 
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-
-``` r
 #plot
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-18.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-12-18.png)<!-- -->
 
 Plot speed
 
@@ -501,7 +405,7 @@ track <- predObj %>%
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ``` r
 at_sea <- remove_points_on_land(track)
@@ -512,36 +416,13 @@ at_sea %>%
     plot_track(.) 
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
 
 ``` r
 at_sea <- split_into_trips(at_sea)
-head(at_sea) %>% kable()
-```
+# head(at_sea) %>% kable()
+# tail(at_sea) %>% kable()
 
-|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196699 | 2020-01-07 19:43:00 |    26.88333 | TRUE        |       NA |        NA | TRUE        |    1 |
-| 196699 | 2020-01-07 19:48:00 |    26.96667 | TRUE        | 26.88333 | 0.0833333 | FALSE       |    1 |
-| 196699 | 2020-01-07 19:53:00 |    27.05000 | TRUE        | 26.96667 | 0.0833333 | FALSE       |    1 |
-| 196699 | 2020-01-07 19:58:00 |    27.13333 | TRUE        | 27.05000 | 0.0833333 | FALSE       |    1 |
-| 196699 | 2020-01-07 20:03:00 |    27.21667 | TRUE        | 27.13333 | 0.0833333 | FALSE       |    1 |
-| 196699 | 2020-01-07 20:08:00 |    27.30000 | TRUE        | 27.21667 | 0.0833333 | FALSE       |    1 |
-
-``` r
-tail(at_sea) %>% kable()
-```
-
-|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196699 | 2020-02-12 11:28:00 |    882.6333 | TRUE        | 882.5500 | 0.0833333 | FALSE       |   20 |
-| 196699 | 2020-02-12 11:33:00 |    882.7167 | TRUE        | 882.6333 | 0.0833333 | FALSE       |   20 |
-| 196699 | 2020-02-12 11:38:00 |    882.8000 | TRUE        | 882.7167 | 0.0833333 | FALSE       |   20 |
-| 196699 | 2020-02-12 11:43:00 |    882.8833 | TRUE        | 882.8000 | 0.0833333 | FALSE       |   20 |
-| 196699 | 2020-02-12 11:48:00 |    882.9667 | TRUE        | 882.8833 | 0.0833333 | FALSE       |   20 |
-| 196699 | 2020-02-12 11:52:00 |    883.0333 | TRUE        | 882.9667 | 0.0666667 | TRUE        |   20 |
-
-``` r
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
 plots <- at_sea %>% 
@@ -549,34 +430,11 @@ plots <- at_sea %>%
   distinct(Trip) %>%                # find number of trips
   deframe() %>%                     # change to vector to pass to map
   purrr::map(., ~plot_trip(.x))
-```
 
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-
-``` r
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-22.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-22.png)<!-- -->
 
 Plot speed
 
@@ -618,7 +476,7 @@ track <- predObj %>%
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 at_sea <- remove_points_on_land(track)
@@ -629,36 +487,13 @@ at_sea %>%
     plot_track(.) 
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->
 
 ``` r
 at_sea <- split_into_trips(at_sea)
-head(at_sea) %>% kable()
-```
+# head(at_sea) %>% kable()
+# tail(at_sea) %>% kable()
 
-|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196707 | 2020-01-07 06:56:00 |    14.10000 | TRUE        |       NA |        NA | TRUE        |    1 |
-| 196707 | 2020-01-07 07:01:00 |    14.18333 | TRUE        | 14.10000 | 0.0833333 | FALSE       |    1 |
-| 196707 | 2020-01-07 07:06:00 |    14.26667 | TRUE        | 14.18333 | 0.0833333 | FALSE       |    1 |
-| 196707 | 2020-01-07 07:11:00 |    14.35000 | TRUE        | 14.26667 | 0.0833333 | FALSE       |    1 |
-| 196707 | 2020-01-07 07:16:00 |    14.43333 | TRUE        | 14.35000 | 0.0833333 | FALSE       |    1 |
-| 196707 | 2020-01-07 07:21:00 |    14.51667 | TRUE        | 14.43333 | 0.0833333 | FALSE       |    1 |
-
-``` r
-tail(at_sea) %>% kable()
-```
-
-|    Ptt | Time\_absolute      | Time\_since | off\_island |     lag1 |     diff1 | Start\_trip | Trip |
-| -----: | :------------------ | ----------: | :---------- | -------: | --------: | :---------- | ---: |
-| 196707 | 2020-03-13 20:11:00 |    1611.350 | TRUE        | 1611.267 | 0.0833333 | FALSE       |   30 |
-| 196707 | 2020-03-13 20:16:00 |    1611.433 | TRUE        | 1611.350 | 0.0833333 | FALSE       |   30 |
-| 196707 | 2020-03-13 20:21:00 |    1611.517 | TRUE        | 1611.433 | 0.0833333 | FALSE       |   30 |
-| 196707 | 2020-03-13 20:22:00 |    1611.533 | TRUE        | 1611.517 | 0.0166667 | FALSE       |   30 |
-| 196707 | 2020-03-13 20:26:00 |    1611.600 | TRUE        | 1611.533 | 0.0666667 | FALSE       |   30 |
-| 196707 | 2020-03-13 20:31:00 |    1611.683 | TRUE        | 1611.600 | 0.0833333 | TRUE        |   30 |
-
-``` r
 Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 
 plots <- at_sea %>% 
@@ -666,106 +501,36 @@ plots <- at_sea %>%
   distinct(Trip) %>%                # find number of trips
   deframe() %>%                     # change to vector to pass to map
   purrr::map(., ~plot_trip(.x))
-```
 
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
-
-``` r
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-31.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-32.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-31.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-32.png)<!-- -->
 
 Plot speed
 
 ``` r
-at_sea_df <- at_sea %>% 
-  sp::spTransform(crs("+init=epsg:4326")) %>%   
-  data.frame() %>%
-  dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-  dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-  dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-  dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-  dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-
-#slice(which(row_number() %% 5 == 1))
-
-# Plot the average speed over time
-ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-  geom_line() + 
-  xlab("") + 
-  scale_y_continuous(breaks=seq(0,10,0.5)) +
-  geom_hline(yintercept=1, 
-             linetype="dashed", 
-             color = "red")
-```
-
-    ## Warning: Removed 37 rows containing missing values (geom_path).
-
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
-
-Here I tried to use faceting to plot the trips in a grid for easier
-veiwing, but they are really squished in the knitted document so it’s
-not worth pursuing this.
-
-To make sure that Saunders was always plotted, I extracted it as an
-extra layer to be plotted. Can I use something like a logical statement
-when I plot the trips to make sure that Saunders is always on the plot?
-Something like xmin = the lesser of the xmin of the points or the xmin
-of the corner of the island.
-
-``` r
-# # crop to Saunders, the order is xmin, xmax, ymin, ymax
-# Saunders <- crop(SSI_laea, c(-33000, -22000, 18000, 28000)) 
+# at_sea_df <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>%
+#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
 # 
-# # convert to dataframe for use with ggplot2
-# Saunders@data$id = rownames(Saunders@data)
-# Saunders.points = fortify(Saunders, region="id")
-# Saunders.df = plyr::join(Saunders.points, Saunders@data, by="id")
-# # filter out only the polygons for the islands
-# Saunders.df <- Saunders.df %>% filter(hole == TRUE)
+# #slice(which(row_number() %% 5 == 1))
 # 
-# ggplot() +
-#   # plot the map first, geom_map allows the extent of the map to vary based on the points
-#   geom_map(data = SSI_laea.df, map = SSI_laea.df, aes(map_id = id)) +
-#   # add Saunders as a polygon to make sure the full island is included
-#   geom_polygon(data = Saunders.df, aes(x = long, y = lat, group = group), fill="grey50") +
-#   # add the points
-#   geom_point(data = data.frame(at_sea), aes(x = LON, y = LAT)) +
-#   # facet based on trip number, allow map extent to vary in each plot
-#   facet_wrap(~Trip, scales = "free") +
-#   theme_bw() 
+# # Plot the average speed over time
+# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+#   geom_line() + 
+#   xlab("") + 
+#   scale_y_continuous(breaks=seq(0,10,0.5)) +
+#   geom_hline(yintercept=1, 
+#              linetype="dashed", 
+#              color = "red")
 ```
 
 ## Questions
