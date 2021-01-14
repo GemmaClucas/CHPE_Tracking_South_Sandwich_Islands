@@ -174,11 +174,12 @@ split_into_trips <- function(at_sea) {
 This function takes a sequence of numbers corresponding to the number of
 `Start_trip == TRUE` in the object `at_sea` to split the dataframe up
 into trips and plot each indiviudally. The function will resize the map
-according to the min and max longitude and latitude for each trip. This
-is not ideal but will do for now.
+according to the min and max longitude and latitude for each trip, while
+still including Saunders Island.
 
 Note, now that I am recording the trip number in `at_sea` I could use
-facting to plot the trips instead, probably. Maybe do this later.
+facting to plot the trips instead, probably. Nope tried this, the graphs
+are too squashed.
 
 ``` r
 plot_trip <- function(x) {
@@ -200,14 +201,23 @@ plot_trip <- function(x) {
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue"),
           legend.title = element_blank()) +
-    # size according to the dimensions of the trip - this is not ideal
+    # # size according to the dimensions of the trip - this is not ideal
+    # coord_fixed(ratio = 1,
+    #             xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
+    #                      data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
+    #             ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
+    #                      data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
+    #             expand = TRUE,
+    #             clip = "on") 
+  # size according to the dimensions of the trip - this is not ideal
     coord_fixed(ratio = 1,
-                xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
-                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
-                ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
-                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
+                xlim = c(min(c(-33000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min())),
+                         max(c(-22000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()))),
+                ylim = c(min(c(18000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min())),
+                         max(c(28000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()))),
                 expand = TRUE,
                 clip = "on")
+  
 }
 ```
 
@@ -277,10 +287,12 @@ the code Vicky sent over, but it runs a bit faster.
 
 I am estimating the average speed over a sliding window of 3 hours at
 the mo, so that I’m not filtering out times when the birds are resting
-between dives. Take a look at this further - there are some times when
-the speed is either NaN or Inf because an observation and predicted
-location occur at exactly the same time - nudge times to be off by a few
-seconds when this occurs?
+between dives. There are some times when the speed is either NaN or Inf
+because an observation and predicted location occur at exactly the same
+time. At this stage I don’t want to go all the way back and shift the
+times, as I don’t want to mess up the predicted tracks, so for the
+purposes of just working out the speed, I will filter out the times when
+both time stamps are identical using `distinct()` from dplyr.
 
 Decide on a cut-off for getting rid of these duff points - is 3 hours a
 long enough window? looks like 0.6 kph might be a good minimum avg
@@ -291,20 +303,31 @@ According to Culick et al (1994), the preferred swimming speeds of
 chinstrap penguins are 2.4 m/s, which is 8.6 kph.
 
 ``` r
-at_sea_df <- at_sea %>% 
-  sp::spTransform(crs("+init=epsg:4326")) %>%   
-  data.frame() %>%                              
-  mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-  mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-  mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-  mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-
-  # filter(Time_absolute > "2020-01-20 22:40:00") %>% 
-  # filter(Time_absolute < "2020-01-22 20:54:00") %>% 
-  # head()
+# at_sea_df <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>%
+#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+# 
+# # Plot the average speed over time
+# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+#   geom_line() + 
+#   xlab("") + 
+#   scale_y_continuous(breaks=seq(0,10,0.5)) +
+#   geom_hline(yintercept=1, 
+#              linetype="dashed", 
+#              color = "red")
 ```
+
+It looks like 1 kph might be a good cut-off to use from this plot,
+although there are maybe two instances when the average speed is stable
+and just over 1kph. Check with other
+individuals.
 
 ``` r
 # # Vicky's code gives same result. Note I modified the radius of the earth from 6371 km to 6363, which is the radius at 57.7 South.
@@ -441,6 +464,30 @@ invisible(lapply(plots, print))
 
 ![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-18.png)<!-- -->
 
+Plot speed
+
+``` r
+# at_sea_df <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>%
+#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+# 
+# # Plot the average speed over time
+# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+#   geom_line() + 
+#   xlab("") + 
+#   scale_y_continuous(breaks=seq(0,10,0.5)) +
+#   geom_hline(yintercept=1, 
+#              linetype="dashed", 
+#              color = "red")
+```
+
 ### Penguin - 196699
 
 ``` r
@@ -454,7 +501,7 @@ track <- predObj %>%
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
 at_sea <- remove_points_on_land(track)
@@ -465,7 +512,7 @@ at_sea %>%
     plot_track(.) 
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
 
 ``` r
 at_sea <- split_into_trips(at_sea)
@@ -529,7 +576,34 @@ plots <- at_sea %>%
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-22.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-22.png)<!-- -->
+
+Plot speed
+
+``` r
+# at_sea_df <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>%
+#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+# 
+# # Plot the average speed over time
+# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+#   geom_line() + 
+#   xlab("") + 
+#   scale_y_continuous(breaks=seq(0,10,0.5)) +
+#   geom_hline(yintercept=1, 
+#              linetype="dashed", 
+#              color = "red")
+```
+
+Maybe a cut-off of something slightly above one is needed
+here?
 
 ### Penguin - 196707
 
@@ -544,7 +618,7 @@ track <- predObj %>%
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 at_sea <- remove_points_on_land(track)
@@ -555,7 +629,7 @@ at_sea %>%
     plot_track(.) 
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
 
 ``` r
 at_sea <- split_into_trips(at_sea)
@@ -629,7 +703,70 @@ plots <- at_sea %>%
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-31.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-32.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-31.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-32.png)<!-- -->
+
+Plot speed
+
+``` r
+at_sea_df <- at_sea %>% 
+  sp::spTransform(crs("+init=epsg:4326")) %>%   
+  data.frame() %>%
+  dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+  dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+  dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+  dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+  dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+
+#slice(which(row_number() %% 5 == 1))
+
+# Plot the average speed over time
+ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+  geom_line() + 
+  xlab("") + 
+  scale_y_continuous(breaks=seq(0,10,0.5)) +
+  geom_hline(yintercept=1, 
+             linetype="dashed", 
+             color = "red")
+```
+
+    ## Warning: Removed 37 rows containing missing values (geom_path).
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+Here I tried to use faceting to plot the trips in a grid for easier
+veiwing, but they are really squished in the knitted document so it’s
+not worth pursuing this.
+
+To make sure that Saunders was always plotted, I extracted it as an
+extra layer to be plotted. Can I use something like a logical statement
+when I plot the trips to make sure that Saunders is always on the plot?
+Something like xmin = the lesser of the xmin of the points or the xmin
+of the corner of the island.
+
+``` r
+# # crop to Saunders, the order is xmin, xmax, ymin, ymax
+# Saunders <- crop(SSI_laea, c(-33000, -22000, 18000, 28000)) 
+# 
+# # convert to dataframe for use with ggplot2
+# Saunders@data$id = rownames(Saunders@data)
+# Saunders.points = fortify(Saunders, region="id")
+# Saunders.df = plyr::join(Saunders.points, Saunders@data, by="id")
+# # filter out only the polygons for the islands
+# Saunders.df <- Saunders.df %>% filter(hole == TRUE)
+# 
+# ggplot() +
+#   # plot the map first, geom_map allows the extent of the map to vary based on the points
+#   geom_map(data = SSI_laea.df, map = SSI_laea.df, aes(map_id = id)) +
+#   # add Saunders as a polygon to make sure the full island is included
+#   geom_polygon(data = Saunders.df, aes(x = long, y = lat, group = group), fill="grey50") +
+#   # add the points
+#   geom_point(data = data.frame(at_sea), aes(x = LON, y = LAT)) +
+#   # facet based on trip number, allow map extent to vary in each plot
+#   facet_wrap(~Trip, scales = "free") +
+#   theme_bw() 
+```
 
 ## Questions
 

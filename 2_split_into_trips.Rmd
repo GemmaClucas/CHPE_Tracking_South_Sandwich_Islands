@@ -147,9 +147,9 @@ split_into_trips <- function(at_sea) {
 ```
 
 ### Function for plotting the trips
-This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip. This is not ideal but will do for now.
+This function takes a sequence of numbers corresponding to the number of ```Start_trip == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip, while still including Saunders Island.
 
-Note, now that I am recording the trip number in ```at_sea``` I could use facting to plot the trips instead, probably. Maybe do this later.
+Note, now that I am recording the trip number in ```at_sea``` I could use facting to plot the trips instead, probably. Nope tried this, the graphs are too squashed.
 ```{r}
 plot_trip <- function(x) {
   ggplot() +
@@ -170,14 +170,23 @@ plot_trip <- function(x) {
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue"),
           legend.title = element_blank()) +
-    # size according to the dimensions of the trip - this is not ideal
+    # # size according to the dimensions of the trip - this is not ideal
+    # coord_fixed(ratio = 1,
+    #             xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
+    #                      data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
+    #             ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
+    #                      data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
+    #             expand = TRUE,
+    #             clip = "on") 
+  # size according to the dimensions of the trip - this is not ideal
     coord_fixed(ratio = 1,
-                xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
-                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
-                ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
-                         data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
+                xlim = c(min(c(-33000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min())),
+                         max(c(-22000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()))),
+                ylim = c(min(c(18000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min())),
+                         max(c(28000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()))),
                 expand = TRUE,
                 clip = "on")
+  
 }
 
 ```
@@ -229,25 +238,25 @@ According to Culick et al (1994), the preferred swimming speeds of chinstrap pen
 
 
 ```{r}
-at_sea_df <- at_sea %>% 
-  sp::spTransform(crs("+init=epsg:4326")) %>%   
-  data.frame() %>%
-  dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-  dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-  dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-  dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-  dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-
-# Plot the average speed over time
-ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-  geom_line() + 
-  xlab("") + 
-  scale_y_continuous(breaks=seq(0,10,0.5)) +
-  geom_hline(yintercept=1, 
-             linetype="dashed", 
-             color = "red")
+# at_sea_df <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>%
+#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+# 
+# # Plot the average speed over time
+# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+#   geom_line() + 
+#   xlab("") + 
+#   scale_y_continuous(breaks=seq(0,10,0.5)) +
+#   geom_hline(yintercept=1, 
+#              linetype="dashed", 
+#              color = "red")
 ```
 It looks like 1 kph might be a good cut-off to use from this plot, although there are maybe two instances when the average speed is stable and just over 1kph. Check with other individuals.
 
@@ -336,25 +345,25 @@ invisible(lapply(plots, print))
 
 Plot speed
 ```{r}
-at_sea_df <- at_sea %>% 
-  sp::spTransform(crs("+init=epsg:4326")) %>%   
-  data.frame() %>%
-  dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-  dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-  dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-  dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-  dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-
-# Plot the average speed over time
-ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-  geom_line() + 
-  xlab("") + 
-  scale_y_continuous(breaks=seq(0,10,0.5)) +
-  geom_hline(yintercept=1, 
-             linetype="dashed", 
-             color = "red")
+# at_sea_df <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>%
+#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+# 
+# # Plot the average speed over time
+# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+#   geom_line() + 
+#   xlab("") + 
+#   scale_y_continuous(breaks=seq(0,10,0.5)) +
+#   geom_hline(yintercept=1, 
+#              linetype="dashed", 
+#              color = "red")
 ```
 
 ### Penguin - 196699
@@ -396,25 +405,25 @@ invisible(lapply(plots, print))
 
 Plot speed
 ```{r}
-at_sea_df <- at_sea %>% 
-  sp::spTransform(crs("+init=epsg:4326")) %>%   
-  data.frame() %>%
-  dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
-  dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
-                                  p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
-                                  r = 6362895)) %>%                        # r = radius of earth at 57.7 South
-  dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
-  dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
-  dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
-
-# Plot the average speed over time
-ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
-  geom_line() + 
-  xlab("") + 
-  scale_y_continuous(breaks=seq(0,10,0.5)) +
-  geom_hline(yintercept=1, 
-             linetype="dashed", 
-             color = "red")
+# at_sea_df <- at_sea %>% 
+#   sp::spTransform(crs("+init=epsg:4326")) %>%   
+#   data.frame() %>%
+#   dplyr::distinct(Time_absolute, .keep_all = TRUE) %>% 
+#   dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),                    # gives distance in meters
+#                                   p2 = cbind(lag(LON), lag(LAT)),          # lag is a base r function that takes the next observation by default
+#                                   r = 6362895)) %>%                        # r = radius of earth at 57.7 South
+#   dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%                     # gives speed in m/s since diff1 is in decimal hours
+#   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
+#   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
+# 
+# # Plot the average speed over time
+# ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
+#   geom_line() + 
+#   xlab("") + 
+#   scale_y_continuous(breaks=seq(0,10,0.5)) +
+#   geom_hline(yintercept=1, 
+#              linetype="dashed", 
+#              color = "red")
 ```
 Maybe a cut-off of something slightly above one is needed here?
 
@@ -469,6 +478,8 @@ at_sea_df <- at_sea %>%
   dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%                       # speed in km per hour
   dplyr::mutate(Avg_speed = slide_dbl(.$Speed_kph, ~mean(.x), .before = 36))
 
+#slice(which(row_number() %% 5 == 1))
+
 # Plot the average speed over time
 ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
   geom_line() + 
@@ -478,37 +489,36 @@ ggplot(data = at_sea_df, aes(x=Time_absolute, y=Avg_speed, group = Ptt)) +
              linetype="dashed", 
              color = "red")
 ```
+
+
+
+Here I tried to use faceting to plot the trips in a grid for easier veiwing, but they are really squished in the knitted document so it's not worth pursuing this. 
+
+To make sure that Saunders was always plotted, I extracted it as an extra layer to be plotted. Can I use something like a logical statement when I plot the trips to make sure that Saunders is always on the plot? Something like xmin = the lesser of the xmin of the points or the xmin of the corner of the island.
+
 ```{r}
-ggplot() +
-  # plot the map first
-  geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
-  geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
-  coord_equal() +
-  geom_point(data = data.frame(at_sea), aes(x = LON, y = LAT, colour = Trip)) +
-  facet_wrap(~Trip) 
-  # add the points. This uses the trip number (x) to subset the dataframe by trip.
-  #geom_point(data = data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT)) +
-  theme_bw() +
-  # add headings for trip number and start/stop time
-  labs(title = paste0("Trip ", x),
-       subtitle = paste0("Trip start: ",
-                         data.frame(at_sea[Start_row_indexes[[x]], ]) %>% select(Time_absolute),
-                         ", Trip end: ",
-                         data.frame(at_sea[Start_row_indexes[[x+1]]-1, ]) %>% select(Time_absolute))) +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = "aliceblue"),
-        legend.title = element_blank()) 
+# # crop to Saunders, the order is xmin, xmax, ymin, ymax
+# Saunders <- crop(SSI_laea, c(-33000, -22000, 18000, 28000)) 
+# 
+# # convert to dataframe for use with ggplot2
+# Saunders@data$id = rownames(Saunders@data)
+# Saunders.points = fortify(Saunders, region="id")
+# Saunders.df = plyr::join(Saunders.points, Saunders@data, by="id")
+# # filter out only the polygons for the islands
+# Saunders.df <- Saunders.df %>% filter(hole == TRUE)
+# 
+# ggplot() +
+#   # plot the map first, geom_map allows the extent of the map to vary based on the points
+#   geom_map(data = SSI_laea.df, map = SSI_laea.df, aes(map_id = id)) +
+#   # add Saunders as a polygon to make sure the full island is included
+#   geom_polygon(data = Saunders.df, aes(x = long, y = lat, group = group), fill="grey50") +
+#   # add the points
+#   geom_point(data = data.frame(at_sea), aes(x = LON, y = LAT)) +
+#   # facet based on trip number, allow map extent to vary in each plot
+#   facet_wrap(~Trip, scales = "free") +
+#   theme_bw() 
 
 
-  # size according to the dimensions of the trip - this is not ideal
-  coord_fixed(ratio = 1,
-              xlim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min(),
-                       data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()),
-              ylim = c(data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min(),
-                       data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()),
-              expand = TRUE,
-              clip = "on")
 ```
 
 
