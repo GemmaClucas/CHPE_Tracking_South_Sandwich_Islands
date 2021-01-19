@@ -74,10 +74,10 @@ plot_track <- function(x) {
 ```
 
 ### Function to remove points that are over land
-This also removes points within 1km of land.
+This also removes points within 2km of land.
 ```{r}
 # first create 500m buffer around island
-SSI_laea_buffer <- buffer(SSI_laea, width=-1000)
+SSI_laea_buffer <- buffer(SSI_laea, width=-2000)
 
 remove_points_on_land <- function(track) {
   # make the track spatial points df
