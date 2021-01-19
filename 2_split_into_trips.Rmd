@@ -74,10 +74,10 @@ plot_track <- function(x) {
 ```
 
 ### Function to remove points that are over land
-This also removes points within 2km of land.
+This also removes points within 1km of land. I tried buffers of 500m, 1km, and 2km and found that 1km seemed to split trips fairly well without oversplitting them. However, there are definitely still some instances when multiple trips are not being split.
 ```{r}
 # first create 500m buffer around island
-SSI_laea_buffer <- buffer(SSI_laea, width=-2000)
+SSI_laea_buffer <- buffer(SSI_laea, width=-1000)
 
 remove_points_on_land <- function(track) {
   # make the track spatial points df
