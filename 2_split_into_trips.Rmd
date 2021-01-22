@@ -1,5 +1,5 @@
 ---
-title: "Split into trips"
+title: "Split into trips and filter out incorrectly inferred parts of trips"
 author: "Gemma Clucas"
 date: "4th January 2021"
 output: github_document
@@ -124,7 +124,7 @@ split_into_trips <- function(at_sea) {
                                # put track$Start_trip == TRUE where the diff1 is greater than x mins
                                # Start_trip = diff1 >= 0.5) # 30 minutes on land
                                Start_trip = diff1 >= 0.16) # 10 minutes on land
-                               # Start_trip = diff1 >= 0.25) # 15 minutes on land
+  # Start_trip = diff1 >= 0.25) # 15 minutes on land
   # change the "NA" at the beginning of the first trip to "TRUE"
   at_sea2$Start_trip[1] <- TRUE
   # change the final value of Start_trip to TRUE to signal this is actually the end of the last trip
@@ -210,16 +210,20 @@ calc_avg_speed <- function(x){
     data.frame() %>%
     dplyr::distinct(Time_absolute, .keep_all = TRUE) %>%    # remove duplicated times
     dplyr::group_by(Trip) %>% 
-    dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),      # calculate distance between current and previous point in meters
+    dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),    # calculate distance between current and previous point in meters
                                            p2 = cbind(lag(LON), lag(LAT)),   # lag is a base r function that takes the next observation 
                                            r = 6362895)) %>%        # r = radius of earth in meters at 57.7 South
-    dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%          # gives speed in m/s since diff1 is in decimal hours
+    dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%        # gives speed in m/s since diff1 is in decimal hours
     dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%         # speed in km per hour
-    group_modify(single_group_avg_speed)
+    group_modify(single_group_avg_speed) %>%                        # calc average speed over 3 hour window within each trip
+    ungroup() 
   # change it back to a spatialpointsdataframe with LAEA projection
   coordinates(x2) <- ~LON + LAT
   proj4string(x2) <- CRS("+proj=longlat +ellps=WGS84")
   x2 <- spTransform(x2, CRS = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+  # change to sf so that it's compatible with the tidyverse
+  # x2 <- x2 %>% 
+  #   st_as_sf()
   return(x2)
 }
 
@@ -245,8 +249,26 @@ plot_avg_speed <- function(x){
 
 ```
 
-
-
+### Function to filter out low speed sections of the trips
+```{r}
+# I need to make Start_Trip = True for the last line in at_sea. I don't know why this isn't working.
+filter_out_low_speed_sections <- function(x){
+  x2 <- x %>% 
+    data.frame() %>% 
+    # remove points where the avg speed over the previous 3 hours was less than 1 kph
+    dplyr::filter(Avg_speed > 1) %>%      
+    group_by(Trip) %>%
+    # create new flags for the start of the trip
+    mutate(Start_trip_new = ifelse(Time_absolute == min(Time_absolute), TRUE, FALSE)) %>%    
+    ungroup() 
+  # fudge the final line so that is also says Start_trip_new = TRUE
+  x2[nrow(x2), "Start_trip_new"] <- TRUE
+  # change it back to a spatialpointsdataframe with LAEA projection
+  coordinates(x2) <- ~LON + LAT
+  proj4string(x2) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+  return(x2)
+}
+```
 
 
 
@@ -254,7 +276,8 @@ plot_avg_speed <- function(x){
 
 Load crawled track.
 ```{r}
-predObj <- read.csv("predicted_tracks/196697_track.csv", stringsAsFactors = FALSE)
+penguin <- "196697"
+predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
 track <- predObj %>%
@@ -294,10 +317,17 @@ plot_avg_speed(at_sea)
 
 It looks like 1 kph might be a good cut-off to use from this plot, although there are maybe two instances when the average speed is stable and just over 1kph. Check with other individuals.
 
+```{r, message=FALSE}
+at_sea <- filter_out_low_speed_sections(at_sea) 
+```
+
+
 
 Plot the trips. Note the colour of the points denotes the speed over the previous 3 hours in kph.
 ```{r, message=FALSE}
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
+# Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
+
 
 plots <- at_sea %>%
   data.frame() %>%                  # convert to dataframe
@@ -313,7 +343,8 @@ invisible(lapply(plots, print))
 ### Penguin - 196698
 
 ```{r, message=FALSE, warning=FALSE}
-predObj <- read.csv("predicted_tracks/196698_track.csv", stringsAsFactors = FALSE)
+penguin <- "196698"
+predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
 track <- predObj %>%
@@ -338,13 +369,25 @@ at_sea <- split_into_trips(at_sea)
 at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
+at_sea <- filter_out_low_speed_sections(at_sea) 
+```
+
+```{r}
+at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(Time_absolute == min(Time_absolute))
+```
+
+```{r, warning=FALSE, message=FALSE}
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
 # create plots for each trip
 plots <- at_sea %>%
   data.frame() %>%                  # convert at_sea to dataframe
   distinct(Trip) %>%                # find number of trips
   deframe() %>%                     # change to vector to pass to map
+  seq.int(length.out = length(.)) %>% 
   purrr::map(., ~plot_trip(.x))
 
 #plot
@@ -356,7 +399,8 @@ invisible(lapply(plots, print))
 ### Penguin - 196699
 
 ```{r,  message=FALSE, warning=FALSE}
-predObj <- read.csv("predicted_tracks/196699_track.csv", stringsAsFactors = FALSE)
+penguin <- "196699"
+predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
 track <- predObj %>%
@@ -383,12 +427,15 @@ plot_avg_speed(at_sea)
 Maybe a cut-off of something slightly above one is needed here? Although this penguin doesn't have much data, so it's probably not very representative.
 
 ```{r,  message=FALSE, warning=FALSE}
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
+at_sea <- filter_out_low_speed_sections(at_sea) 
+
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
 plots <- at_sea %>%
   data.frame() %>%                  # convert to dataframe
   distinct(Trip) %>%                # find number of trips
   deframe() %>%                     # change to vector to pass to map
+  seq.int(length.out = length(.)) %>%
   purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
@@ -402,7 +449,8 @@ invisible(lapply(plots, print))
 ### Penguin - 196707
 
 ```{r,  message=FALSE, warning=FALSE}
-predObj <- read.csv("predicted_tracks/196707_track.csv", stringsAsFactors = FALSE) 
+penguin <- "196707"
+predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
 track <- predObj %>%  
@@ -434,13 +482,15 @@ plot_avg_speed(at_sea)
 
 
 ```{r,  message=FALSE, warning=FALSE}
+at_sea <- filter_out_low_speed_sections(at_sea) 
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
 plots <- at_sea %>% 
   data.frame() %>%                  # convert to dataframe
   distinct(Trip) %>%                # find number of trips
   deframe() %>%                     # change to vector to pass to map
+  seq.int(length.out = length(.)) %>%
   purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
