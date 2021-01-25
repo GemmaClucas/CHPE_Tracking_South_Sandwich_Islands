@@ -19,8 +19,35 @@ library(knitr)
 library(spdplyr)
 library(geosphere)
 library(slider)
+library(modelr)
 options(scipen=999)
 ```
+
+Having crawled the tracks in step 1 of the analysis, here I split the
+tracks into individual foraging trips, using time spent in close
+proximity to Saunders Island as the break point between trips.
+
+I also remove sections of the trips where the average speed was less
+than 1 kph for 3 hours. These long sections of low speed movement have
+been inserted into the data by crawl.
+
+Why?
+
+The tags we used were programmed to turn off when they were dry, and so
+we do not have fixes for when the birds were stationary at the colony.
+It also seems like there is often quite a lag between a bird departing
+the colony and the first fix we get. Therefore, crawl has inserted long
+periods (over a day in some cases) of low speed movement away from the
+colony, when the bird was actually most likely at the colony incubating.
+I expect this over-abundance of points near the colony would bias our
+habitat models, and so I have removed the points in these sections of
+the trips.
+
+This has the downside that we do not know exactly when a trip started or
+finished, but the resulting approximate start and finish times for the
+trips seem much more reasonable than without removing these sections of
+the trips; previously the birds were supposedly spending almost no time
+on land, which we know is not the case for chick-rearing parents.
 
 ### Load map and plot
 
@@ -37,11 +64,7 @@ Seamask<-readOGR("Seamask.shp")
 #SSI <- crop(Seamask, c(450000, 750000, -600000, -100000)) # the original values I used here were cropping the end of the tracks when I filtered for the points off land, so I increased the extent of this base map to prevent that
 # NB you can find the maximal extent of Seamask with extent(Seamask)
 SSI <- crop(Seamask, c(450000, 1095192, -795043.9, -100000))
-```
 
-    ## x[i, ] is invalid
-
-``` r
 #Re-project to Lambert Azimuthal Equal Area
 SSI_laea<-spTransform(SSI, CRS=CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
 
@@ -125,13 +148,9 @@ rowShift <- function(x, shiftLen = 1L) {
 ```
 
 Then we calculate the lag time between each point. If there is a lag
-longer than 5 minutes (0.08333 hours), then this is when the bird was on
+longer than 10 minutes (0.16 hours), then this is when the bird was on
 land (technically inside the buffer zone) and so we can use this to
 split the track into separate foraging trips.
-
-I still want to play around with the best lag time to use (30 mins
-maybe?), in case the bird was foraging or hanging out just at the edge
-of the buffer zone.
 
 Each time there is a lag greater than x minutes, we get a `Start_trip =
 TRUE` in the `at_sea` spatial object, otherwise `Start_trip = FALSE`.
@@ -169,51 +188,6 @@ split_into_trips <- function(at_sea) {
     unlist() %>%    # the result has to be changed from a list to a vector
     append(., values = tail(., n=1))    # and this repeats the last trip number once more and appends to the vector, otherwise it missed the last row
   return(at_sea2)
-}
-```
-
-### Function for plotting the trips
-
-This function takes a sequence of numbers corresponding to the number of
-`Start_trip == TRUE` in the object `at_sea` to split the dataframe up
-into trips and plot each indiviudally. The function will resize the map
-according to the min and max longitude and latitude for each trip, while
-still including Saunders Island.
-
-Note, now that I am recording the trip number in `at_sea` I could use
-facting to plot the trips instead, probably. Nope tried this, the graphs
-are too squashed.
-
-``` r
-plot_trip <- function(x) {
-  ggplot() +
-    # plot the map first
-    geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
-    geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
-    coord_equal() +
-    # add the points. This uses the trip number (x) to subset the dataframe by trip.
-    geom_point(data = data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT, colour = Avg_speed)) +
-    theme_bw() +
-    # add headings for trip number and start/stop time
-    labs(title = paste0("Trip ", x),
-         subtitle = paste0("Trip start: ",
-                            data.frame(at_sea[Start_row_indexes[[x]], ]) %>% select(Time_absolute),
-                            ", Trip end: ",
-                            data.frame(at_sea[Start_row_indexes[[x+1]]-1, ]) %>% select(Time_absolute))) +
-    theme(panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.background = element_rect(fill = "aliceblue"),
-          legend.title = element_blank()) +
-    # size according to the dimensions of the trip
-    # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
-    coord_fixed(ratio = 1,
-                xlim = c(min(c(-33000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min())),
-                         max(c(-22000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()))),
-                ylim = c(min(c(18000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min())),
-                         max(c(28000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()))),
-                expand = TRUE,
-                clip = "on")
-  
 }
 ```
 
@@ -300,8 +274,15 @@ plot_avg_speed <- function(x){
 
 ### Function to filter out low speed sections of the trips
 
+This removes low speed sections of trips and adds new labels to signal
+the start of the trip.
+
+I am using `Start_trip_new` here because when filtering out low speed
+sections of trips, sometimes the start of the trip is excluded.
+Therefore I had to add a new variable to signal the new starts of the
+trips.
+
 ``` r
-# I need to make Start_Trip = True for the last line in at_sea. I don't know why this isn't working.
 filter_out_low_speed_sections <- function(x){
   x2 <- x %>% 
     data.frame() %>% 
@@ -317,6 +298,51 @@ filter_out_low_speed_sections <- function(x){
   coordinates(x2) <- ~LON + LAT
   proj4string(x2) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
   return(x2)
+}
+```
+
+### Function for plotting the trips
+
+This function takes a sequence of numbers corresponding to the number of
+`Start_trip_new == TRUE` in the object `at_sea` to split the dataframe
+up into trips and plot each indiviudally. The function will resize the
+map according to the min and max longitude and latitude for each trip,
+while still including Saunders Island.
+
+Note, now that I am recording the trip number in `at_sea` I could use
+facting to plot the trips instead, probably. EDIT: Nope tried this, the
+graphs are too squashed.
+
+``` r
+plot_trip <- function(x) {
+  ggplot() +
+    # plot the map first
+    geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
+    geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
+    coord_equal() +
+    # add the points. This uses the trip number (x) to subset the dataframe by trip.
+    geom_point(data = data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT, colour = Avg_speed)) +
+    theme_bw() +
+    # add headings for trip number and start/stop time
+    labs(color="Average speed",
+         title = paste0("Trip ", x),
+         subtitle = paste0("Trip start: ",
+                           data.frame(at_sea[Start_row_indexes[[x]], ]) %>% select(Time_absolute),
+                           ", Trip end: ",
+                           data.frame(at_sea[Start_row_indexes[[x+1]]-1, ]) %>% select(Time_absolute))) +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill = "aliceblue")) +
+    # size according to the dimensions of the trip
+    # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
+    coord_fixed(ratio = 1,
+                xlim = c(min(c(-33000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% min())),
+                         max(c(-22000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LON) %>% max()))),
+                ylim = c(min(c(18000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% min())),
+                         max(c(28000, data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% select(LAT) %>% max()))),
+                expand = TRUE,
+                clip = "on")
+  
 }
 ```
 
@@ -342,23 +368,18 @@ Remove points on land and replot to make sure nothing has gone wrong.
 
 ``` r
 at_sea <- remove_points_on_land(track)
-
-at_sea %>%
-    data.frame() %>%
-    plot_track(.)
+# at_sea %>% data.frame() %>% plot_track(.)
 ```
-
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 Split into trips.
 
 ``` r
 at_sea <- split_into_trips(at_sea)
-#head(at_sea) %>% kable() # check that the table starts with Start_trip = TRUE and trip number 1
-#tail(at_sea) %>% kable() # check that the table ends with Start_trip = TRUE and some higher trip number
+# head(at_sea)  # check that the table starts with Start_trip = TRUE and trip number 1
+# tail(at_sea)  # check that the table ends with Start_trip = TRUE and some higher trip number
 ```
 
-Plot the average speed
+Calculate and the average speed in 3 hour windows
 
 ``` r
 at_sea <- calc_avg_speed(at_sea)
@@ -366,37 +387,32 @@ at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 ```
 
-    ## Warning: Removed 1 rows containing missing values (geom_path).
-
 ![](2_split_into_trips_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 It looks like 1 kph might be a good cut-off to use from this plot,
 although there are maybe two instances when the average speed is stable
 and just over 1kph. Check with other individuals.
 
+Filter out the low speed sections of the trips and then plot. Note the
+colour of the points denotes the speed over the previous 3 hours in kph.
+
 ``` r
 at_sea <- filter_out_low_speed_sections(at_sea) 
-```
 
-Plot the trips. Note the colour of the points denotes the speed over the
-previous 3 hours in
-kph.
-
-``` r
-# Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
 Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
-
+# create plots for each trip
 plots <- at_sea %>%
-  data.frame() %>%                  # convert to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
+  data.frame() %>%                  
+  distinct(Trip) %>%                
+  nrow() %>%                        # find number of trips
+  seq(1, .) %>% 
   purrr::map(., ~plot_trip(.x))
 
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-16.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-14-16.png)<!-- -->
 
 ### Penguin - 196698
 
@@ -412,84 +428,50 @@ track <- predObj %>%
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
 # remove points on land
 at_sea <- remove_points_on_land(track)
 
 # plot to make sure it worked
-at_sea %>%
-    data.frame() %>%
-    plot_track(.)
-```
+# at_sea %>%
+#     data.frame() %>%
+#     plot_track(.)
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->
-
-``` r
 # split into trips
 at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
+# calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-3.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
+
+1 kph seems like an ok cut-off for this one.
 
 ``` r
+# remove low speed sections
 at_sea <- filter_out_low_speed_sections(at_sea) 
-```
 
-``` r
-at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(Time_absolute == min(Time_absolute))
-```
-
-    ## # A tibble: 17 x 18
-    ## # Groups:   Trip [17]
-    ##     Trip    Ptt Time_absolute Time_since off_island   lag1  diff1 Start_trip
-    ##    <int>  <int> <chr>              <dbl> <lgl>       <dbl>  <dbl> <lgl>     
-    ##  1     1 196698 2020-01-08 1…       43.1 TRUE         43.0 0.0833 FALSE     
-    ##  2     2 196698 2020-01-11 1…      115.  TRUE        115.  0.0833 FALSE     
-    ##  3     3 196698 2020-01-11 1…      115.  TRUE        115.  0.0833 FALSE     
-    ##  4     4 196698 2020-01-12 2…      150.  TRUE        150.  0.0833 FALSE     
-    ##  5     5 196698 2020-01-13 1…      164.  TRUE        164.  0.0833 FALSE     
-    ##  6     6 196698 2020-01-15 0…      205.  TRUE        205.  0.0833 FALSE     
-    ##  7     7 196698 2020-01-15 0…      206.  TRUE        206.  0.0833 FALSE     
-    ##  8     8 196698 2020-01-16 1…      242.  TRUE        242.  0.0833 FALSE     
-    ##  9     9 196698 2020-01-18 1…      284.  TRUE        284.  0.0833 FALSE     
-    ## 10    10 196698 2020-01-20 1…      332.  TRUE        332.  0.0833 FALSE     
-    ## 11    11 196698 2020-01-23 1…      403.  TRUE        403.  0.0500 FALSE     
-    ## 12    12 196698 2020-01-24 1…      430.  TRUE        430.  0.0833 FALSE     
-    ## 13    13 196698 2020-01-24 1…      431.  TRUE        431.  0.0833 FALSE     
-    ## 14    14 196698 2020-01-26 1…      474.  TRUE        474.  0.05   FALSE     
-    ## 15    15 196698 2020-01-27 1…      505.  TRUE        505.  0.05   FALSE     
-    ## 16    17 196698 2020-02-03 1…      668.  TRUE        668.  0.0833 FALSE     
-    ## 17    18 196698 2020-02-26 2…     1228.  TRUE       1227.  0.0833 FALSE     
-    ## # … with 10 more variables: optional <lgl>, Distance <dbl>, Speed_ms <dbl>,
-    ## #   Speed_kph <dbl>, Avg_speed <dbl>, LON <dbl>, LAT <dbl>, optional.1 <lgl>,
-    ## #   Start_trip_new <lgl>, optional.2 <lgl>
-
-``` r
 Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
 # create plots for each trip
 plots <- at_sea %>%
-  data.frame() %>%                  # convert at_sea to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
-  seq.int(length.out = length(.)) %>% 
+  data.frame() %>%                  
+  distinct(Trip) %>%                
+  nrow() %>%                        # find number of trips
+  seq(1, .) %>% 
   purrr::map(., ~plot_trip(.x))
 
 #plot
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-17.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-17.png)<!-- -->
 
 ### Penguin - 196699
 
@@ -505,60 +487,121 @@ track <- predObj %>%
 plot_track(track)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
+# remove points on land
 at_sea <- remove_points_on_land(track)
 
 # plot to make sure it worked
-at_sea %>%
-    data.frame() %>%
-    plot_track(.)
-```
+# at_sea %>%
+#     data.frame() %>%
+#     plot_track(.)
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-19-2.png)<!-- -->
-
-``` r
+# split into trips
 at_sea <- split_into_trips(at_sea)
-# head(at_sea) %>% kable()
-# tail(at_sea) %>% kable()
+# head(at_sea) %>% kable
+# tail(at_sea) %>% kable
 
+# calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-19-3.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
 
-Maybe a cut-off of something slightly above one is needed here? Although
-this penguin doesn’t have much data, so it’s probably not very
-representative.
+This one is definitely a bit odd.
 
 ``` r
+# remove low speed sections
 at_sea <- filter_out_low_speed_sections(at_sea) 
 
 Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
+# create plots for each trip
 plots <- at_sea %>%
-  data.frame() %>%                  # convert to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
-  seq.int(length.out = length(.)) %>%
+  data.frame() %>%                  
+  distinct(Trip) %>%                
+  nrow() %>%                        # find number of trips
+  seq(1, .) %>% 
   purrr::map(., ~plot_trip(.x))
 
+#plot
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-17.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-17.png)<!-- -->
+
+### Penguin - 196700
+
+``` r
+penguin <- "196700"
+predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
+
+# select the useful columns and rename
+track <- predObj %>%
+  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%
+  rename(LON = mu.x, LAT = mu.y)
+
+plot_track(track)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+``` r
+# remove points on land
+at_sea <- remove_points_on_land(track)
+
+# plot to make sure it worked
+# at_sea %>% data.frame() %>% plot_track(.)
+
+# split into trips
+at_sea <- split_into_trips(at_sea)
+# head(at_sea) %>% kable
+# tail(at_sea) %>% kable
+
+# calc and plot speed 
+at_sea <- calc_avg_speed(at_sea)
+plot_avg_speed(at_sea)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-19-2.png)<!-- -->
+
+Also a bit odd. Not much data from this one.
+
+``` r
+# remove low speed sections
+at_sea <- filter_out_low_speed_sections(at_sea) 
+# head(at_sea)
+# tail(at_sea)
+
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
+
+# create plots for each trip
+plots <- at_sea %>%
+  data.frame() %>%                  
+  distinct(Trip) %>%                
+  nrow() %>%                        # find number of trips
+  seq(1, .) %>% 
+  purrr::map(., ~plot_trip(.x))
+
+#plot
+invisible(lapply(plots, print))
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-5.png)<!-- -->
 
 ### Penguin - 196707
+
+Using this one as we have the most data from this individual.
 
 ``` r
 penguin <- "196707"
 predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
-track <- predObj %>%  
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>% 
+track <- predObj %>%
+  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%
   rename(LON = mu.x, LAT = mu.y)
 
 plot_track(track)
@@ -567,60 +610,54 @@ plot_track(track)
 ![](2_split_into_trips_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 ``` r
+# remove points on land
 at_sea <- remove_points_on_land(track)
 
 # plot to make sure it worked
-at_sea %>% 
-    data.frame() %>% 
-    plot_track(.) 
+# at_sea %>% data.frame() %>% plot_track(.)
+
+# split into trips
+at_sea <- split_into_trips(at_sea)
+# head(at_sea) %>% kable
+# tail(at_sea) %>% kable
+
+# calc and plot speed 
+at_sea <- calc_avg_speed(at_sea)
+plot_avg_speed(at_sea)
 ```
 
 ![](2_split_into_trips_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
 
-``` r
-at_sea <- split_into_trips(at_sea)
-# head(at_sea) %>% kable()
-# tail(at_sea) %>% kable()
-```
-
-Plot the average speed
+1 kph seems like a good cut-off for this one.
 
 ``` r
-at_sea <- calc_avg_speed(at_sea)
-
-plot_avg_speed(at_sea)
-```
-
-    ## Warning: Removed 1 rows containing missing values (geom_path).
-
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
-
-1 kph seems like a good cut-off for this bird, which is the one we have
-the most data from.
-
-``` r
+# remove low speed sections
 at_sea <- filter_out_low_speed_sections(at_sea) 
+# head(at_sea)
+# tail(at_sea)
 
 Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
-plots <- at_sea %>% 
-  data.frame() %>%                  # convert to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
-  seq.int(length.out = length(.)) %>%
+# create plots for each trip
+plots <- at_sea %>%
+  data.frame() %>%                  
+  distinct(Trip) %>%                
+  nrow() %>%                        # find number of trips
+  seq(1, .) %>% 
   purrr::map(., ~plot_trip(.x))
 
+#plot
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-23-30.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-22-30.png)<!-- -->
 
 ## Questions/Next-steps
 
-1.  I think I should go ahead and remove portions of the trips when the
-    average speed was less than 1 kph over 3 hour windows.
+1.  Does it matter that there are still some instances when trips are
+    not being split up properly? At the moment I am splitting trips if
+    the bird spent more than 10 minutes inside a 1km buffer zone around
+    the island.
 
-2.  Go through all individuals and delete the short trips which are
-    clearly just the result of an inaccurate fix. Is there a rule of
-    thumb to follow for keeping trips that look real (e.g. the have some
-    wiggles in them?) and deleting the bad stuff?
+2.  Do I need to remove the weird looking short trips that probably
+    aren’t real or the result of a duff fix?
