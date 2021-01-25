@@ -35,13 +35,12 @@ Why?
 
 The tags we used were programmed to turn off when they were dry, and so
 we do not have fixes for when the birds were stationary at the colony.
-It also seems like there is often quite a lag between a bird departing
-the colony and the first fix we get. Therefore, crawl has inserted long
-periods (over a day in some cases) of low speed movement away from the
-colony, when the bird was actually most likely at the colony incubating.
-I expect this over-abundance of points near the colony would bias our
-habitat models, and so I have removed the points in these sections of
-the trips.
+It also seems like we often miss fixes when they are transiting to/from
+the colony. Therefore, crawl has inserted long periods (over a day in
+some cases) of low speed movement away from or towards the colony, when
+the bird was actually most likely at the colony incubating. I expect
+this over-abundance of points near the colony would bias our habitat
+models, and so I have removed the points in these sections of the trips.
 
 This has the downside that we do not know exactly when a trip started or
 finished, but the resulting approximate start and finish times for the
