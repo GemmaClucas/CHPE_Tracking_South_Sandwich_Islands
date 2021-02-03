@@ -233,7 +233,7 @@ calc_avg_speed <- function(x){
     data.frame() %>%
     arrange(Time_absolute, desc(locType == 'o')) %>%        # arrange times so that observed locations come before predicted
     dplyr::distinct(Time_absolute, .keep_all = TRUE) %>%    # remove duplicated times, keeping first row i.e. the observed one
-    dplyr::mutate(lag2 = rowShift(Time_since, -1),
+    dplyr::mutate(lag2 = rowShift(Time_since, -1),        # have to recalculate lag times now
                   diff2 = Time_since - lag2) %>% 
     dplyr::group_by(Trip) %>% 
     dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),    # calculate distance between current and previous point in meters
@@ -331,7 +331,9 @@ plot_trip <- function(x) {
          subtitle = paste0("Trip start: ",
                            data.frame(at_sea[Start_row_indexes[[x]], ]) %>% select(Time_absolute),
                            ", Trip end: ",
-                           data.frame(at_sea[Start_row_indexes[[x+1]]-1, ]) %>% select(Time_absolute))) +
+                           data.frame(at_sea[Start_row_indexes[[x+1]]-1, ]) %>% select(Time_absolute),
+                           "\n # Observed locations: ", data.frame(at_sea[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]) %>%
+                             filter(locType == "o") %>% nrow())) +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           panel.background = element_rect(fill = "aliceblue")) +
@@ -629,7 +631,7 @@ plot_avg_speed(at_sea)
 
 ![](2_split_into_trips_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
 
-1 kph seems like a good cut-off for this one.
+1.2 kph seems like a good cut-off for this one.
 
 ``` r
 # remove low speed sections
