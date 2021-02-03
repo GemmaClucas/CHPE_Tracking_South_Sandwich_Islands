@@ -184,13 +184,16 @@ calc_avg_speed <- function(x){
   x2 <- x %>% 
     sp::spTransform(crs("+init=epsg:4326")) %>%
     data.frame() %>%
-    dplyr::distinct(Time_absolute, .keep_all = TRUE) %>%    # remove duplicated times
+    arrange(Time_absolute, desc(locType == 'o')) %>%        # arrange times so that observed locations come before predicted
+    dplyr::distinct(Time_absolute, .keep_all = TRUE) %>%    # remove duplicated times, keeping first row i.e. the observed one
+    dplyr::mutate(lag2 = rowShift(Time_since, -1),        # have to recalculate lag times now
+                  diff2 = Time_since - lag2) %>% 
     dplyr::group_by(Trip) %>% 
     dplyr::mutate(Distance = distHaversine(p1 = cbind(LON, LAT),    # calculate distance between current and previous point in meters
                                            p2 = cbind(lag(LON), lag(LAT)),   # lag is a base r function that takes the next observation 
                                            r = 6362895)) %>%        # r = radius of earth in meters at 57.7 South
-    dplyr::mutate(Speed_ms = Distance / (diff1*60*60))   %>%        # gives speed in m/s since diff1 is in decimal hours
-    dplyr::mutate(Speed_kph = (Distance/1000) / diff1)  %>%         # speed in km per hour
+    dplyr::mutate(Speed_ms = Distance / (diff2*60*60))   %>%        # gives speed in m/s since diff1 is in decimal hours
+    dplyr::mutate(Speed_kph = (Distance/1000) / diff2)  %>%         # speed in km per hour
     group_modify(single_group_avg_speed) %>%                        # calc average speed over 3 hour window within each trip
     ungroup() 
   # change it back to a spatialpointsdataframe with LAEA projection
@@ -218,7 +221,7 @@ plot_avg_speed <- function(x){
     geom_line() +
     xlab("") +
     scale_y_continuous(breaks=seq(0,15,0.5)) +
-    geom_hline(yintercept=1,
+    geom_hline(yintercept=1.2,
                linetype="dashed",
                color = "red")
 }
@@ -237,7 +240,7 @@ filter_out_low_speed_sections <- function(x){
   x2 <- x %>% 
     data.frame() %>% 
     # remove points where the avg speed over the previous 3 hours was less than 1 kph
-    dplyr::filter(Avg_speed > 1) %>%      
+    dplyr::filter(Avg_speed > 1.2) %>%      
     group_by(Trip) %>%
     # create new flags for the start of the trip
     mutate(Start_trip_new = ifelse(Time_absolute == min(Time_absolute), TRUE, FALSE)) %>%    
@@ -302,8 +305,8 @@ predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsA
 
 # select the useful columns and rename
 track <- predObj %>%
-  select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
-  rename(LON = mu.x, LAT = mu.y)
+  dplyr::select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
+  dplyr::rename(LON = mu.x, LAT = mu.y)
 
 plot_track(track)
 ```
@@ -324,7 +327,6 @@ at_sea <- split_into_trips(at_sea)
 ```
 
 
-
 Calculate and the average speed in 3 hour windows
 ```{r}
 at_sea <- calc_avg_speed(at_sea)
@@ -332,7 +334,7 @@ at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 ```
 
-It looks like 1 kph might be a good cut-off to use from this plot, although there are maybe two instances when the average speed is stable and just over 1kph. Check with other individuals.
+It looks like 1.2 kph might be a good cut-off to use from this plot.
 
 
 Filter out the low speed sections of the trips and then plot. Note the colour of the points denotes the speed over the previous 3 hours in kph.
@@ -361,8 +363,8 @@ predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsA
 
 # select the useful columns and rename
 track <- predObj %>%
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%
-  rename(LON = mu.x, LAT = mu.y)
+  dplyr::select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
+  dplyr::rename(LON = mu.x, LAT = mu.y)
 
 plot_track(track)
 
@@ -379,12 +381,13 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
+
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 ```
 
-1 kph seems like an ok cut-off for this one.
+1.2 kph seems like an ok cut-off for this one.
 
 ```{r}
 # remove low speed sections
@@ -414,8 +417,8 @@ predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsA
 
 # select the useful columns and rename
 track <- predObj %>%
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%
-  rename(LON = mu.x, LAT = mu.y)
+  dplyr::select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
+  dplyr::rename(LON = mu.x, LAT = mu.y)
 
 plot_track(track)
 
@@ -468,7 +471,7 @@ predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsA
 
 # select the useful columns and rename
 track <- predObj %>%
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%
+  select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
   rename(LON = mu.x, LAT = mu.y)
 
 plot_track(track)
@@ -523,7 +526,7 @@ predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsA
 
 # select the useful columns and rename
 track <- predObj %>%
-  select(Ptt, Time_absolute, Time_since, mu.x, mu.y) %>%
+  select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
   rename(LON = mu.x, LAT = mu.y)
 
 plot_track(track)
