@@ -68,6 +68,31 @@ SSI_laea.df %>%
         panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = "aliceblue"))
 ```
+# Bathymetry
+Plotting this is super slow so I am not going to continue developing this code here. I probably will need it for the final figures though.
+```{r}
+# SSI_bath <- raster("ssi_geotif/full_ssi18a.tif")
+# #plot(SSI_bath)
+# crs(SSI_bath)
+# SSI_bath_WGS84 <- projectRaster(SSI_bath, crs=crs("+init=epsg:4326"))
+# plot(SSI_bath_WGS84, xlim=c(-27,-25), ylim=c(-58.5,-57))
+
+
+# # convert to a df for plotting in two steps,
+# # First, to a SpatialPointsDataFrame then to a conventional dataframe
+# SSI_bath_WGS84_df <- rasterToPoints(SSI_bath_WGS84, spatial = TRUE) %>% 
+#   data.frame() %>% 
+#   rename(Depth = layer)
+# # tidy up
+# rm(SSI_bath, SSI_bath_WGS84)
+
+# ggplot() +
+#   geom_raster(data = SSI_bath_WGS84_df , aes(x = x, y = y, fill = Depth)) +
+#   coord_fixed(xlim = c(-27,-25), ylim=c(-58.5,-57))
+
+```
+
+
 
 ### Function for plotting the penguin track onto the map
 
