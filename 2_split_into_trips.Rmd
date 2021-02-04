@@ -94,7 +94,7 @@ Plotting this is super slow so I am not going to continue developing this code h
 
 
 
-### Function for plotting the penguin track onto the map
+### Plotting the penguin track onto the map
 
 ```{r}
 plot_track <- function(x) {
@@ -113,7 +113,7 @@ plot_track <- function(x) {
 
 ```
 
-### Function to remove points that are over land
+### Remove points that are over land
 This also removes points within 1km of land. I tried buffers of 500m, 1km, and 2km and found that 1km seemed to split trips fairly well without oversplitting them. However, there are definitely still some instances when multiple trips are not being split.
 ```{r}
 # first create 500m buffer around island
@@ -133,7 +133,7 @@ remove_points_on_land <- function(track) {
 
 ```
 
-### Function to split into trips 
+### Split into trips 
 
 First create a function for offsetting the values in a column by 1 row (or more if you change ```shiftLen```). This is needed to later calculate the lag time between each point.
 ```{r}
@@ -185,7 +185,8 @@ split_into_trips <- function(at_sea) {
 ```
 
 
-### Function for estimating and plotting average speed
+
+### Estimating and plotting average speed
 The ```distHaversine()``` function gives the same estimates of distance as the code Vicky sent over, but it runs a bit faster.
 
 I am estimating the average speed over a sliding window of 3 hours at the mo, so that I'm not filtering out times when the birds are resting between dives. There are some times when the speed is either NaN or Inf because an observation and predicted location occur at exactly the same time. At this stage I don't want to go all the way back and shift the times, as I don't want to mess up the predicted tracks, so for the purposes of just working out the speed, I will filter out the times when both time stamps are identical using ```distinct()``` from dplyr.
@@ -254,7 +255,7 @@ plot_avg_speed <- function(x){
 ```
 
 
-### Function to filter out low speed sections of the trips
+### Filter out low speed sections of the trips
 This removes low speed sections of trips and adds new labels to signal the start of the trip. 
 
 I am using ```Start_trip_new``` here because when filtering out low speed sections of trips, sometimes the start of the trip is excluded. Therefore I had to add a new variable to signal the new starts of the trips.
@@ -280,7 +281,7 @@ filter_out_low_speed_sections <- function(x){
 ```
 
 
-### Function for plotting the trips
+### Plotting the trips
 This function takes a sequence of numbers corresponding to the number of ```Start_trip_new == TRUE``` in the object ```at_sea``` to split the dataframe up into trips and plot each indiviudally. The function will resize the map according to the min and max longitude and latitude for each trip, while still including Saunders Island.
 
 Note, now that I am recording the trip number in ```at_sea``` I could use facting to plot the trips instead, probably. EDIT: Nope tried this, the graphs are too squashed.
@@ -323,6 +324,14 @@ plot_trip <- function(x) {
 
 
 
+
+
+
+
+
+
+
+
 ### Penguin - 196697
 
 Load crawled track.
@@ -352,6 +361,20 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea)  # check that the table starts with Start_trip = TRUE and trip number 1
 # tail(at_sea)  # check that the table ends with Start_trip = TRUE and some higher trip number
 ```
+
+Remove duff trips
+```{r}
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+```
+
 
 
 Calculate and the average speed in 3 hour windows
@@ -408,6 +431,16 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+
 
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
@@ -462,6 +495,16 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
@@ -513,6 +556,17 @@ at_sea <- remove_points_on_land(track)
 at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
+
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+
 
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
@@ -568,6 +622,16 @@ at_sea <- remove_points_on_land(track)
 at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
+
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
 
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
