@@ -68,7 +68,8 @@ SSI_laea.df %>%
         panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = "aliceblue"))
 ```
-# Bathymetry
+
+### Bathymetry  
 Plotting this is super slow so I am not going to continue developing this code here. I probably will need it for the final figures though.
 ```{r}
 # SSI_bath <- raster("ssi_geotif/full_ssi18a.tif")
@@ -362,20 +363,6 @@ at_sea <- split_into_trips(at_sea)
 # tail(at_sea)  # check that the table ends with Start_trip = TRUE and some higher trip number
 ```
 
-Remove duff trips
-```{r}
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
-```
-
-
 
 Calculate and the average speed in 3 hour windows
 ```{r}
@@ -387,11 +374,23 @@ plot_avg_speed(at_sea)
 It looks like 1.2 kph might be a good cut-off to use from this plot.
 
 
-Filter out the low speed sections of the trips and then plot. Note the colour of the points denotes the speed over the previous 3 hours in kph.
+Filter out the low speed sections of the trips, remove trips with 1 or 0 observed fixes, then plot. Note the colour of the points denotes the speed over the previous 3 hours in kph.
 ```{r, message=FALSE}
 at_sea <- filter_out_low_speed_sections(at_sea) 
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
+
+# need this for plot_trips() function
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    
 
 # create plots for each trip
 plots <- at_sea %>%
@@ -431,17 +430,6 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
-# Remove duff trips
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
-
-
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
@@ -453,7 +441,19 @@ plot_avg_speed(at_sea)
 # remove low speed sections
 at_sea <- filter_out_low_speed_sections(at_sea) 
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
+
+# need this for plot_trips() function
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    
 
 # create plots for each trip
 plots <- at_sea %>%
@@ -516,7 +516,19 @@ This one is definitely a bit odd.
 # remove low speed sections
 at_sea <- filter_out_low_speed_sections(at_sea) 
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
+
+# need this for plot_trips() function
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    
 
 # create plots for each trip
 plots <- at_sea %>%
@@ -557,16 +569,6 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
-# Remove duff trips
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
-
 
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
@@ -581,7 +583,19 @@ at_sea <- filter_out_low_speed_sections(at_sea)
 # head(at_sea)
 # tail(at_sea)
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
+
+# need this for plot_trips() function
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    
 
 # create plots for each trip
 plots <- at_sea %>%
@@ -623,15 +637,6 @@ at_sea <- split_into_trips(at_sea)
 # head(at_sea) %>% kable
 # tail(at_sea) %>% kable
 
-# Remove duff trips
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
 
 # calc and plot speed 
 at_sea <- calc_avg_speed(at_sea)
@@ -645,6 +650,17 @@ plot_avg_speed(at_sea)
 at_sea <- filter_out_low_speed_sections(at_sea) 
 # head(at_sea)
 # tail(at_sea)
+
+# Remove duff trips
+Keep_trips <- at_sea %>% 
+  data.frame() %>% 
+  group_by(Trip) %>% 
+  filter(locType == "o") %>% 
+  count() %>% 
+  filter(n > 1) %>% 
+  pull(Trip) 
+at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
 
 Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
@@ -661,10 +677,4 @@ invisible(lapply(plots, print))
 ```
 
 
-
-## Questions/Next-steps
-
-1. Does it matter that there are still some instances when trips are not being split up properly? At the moment I am splitting trips if the bird spent more than 10 minutes inside a 1km buffer zone around the island.
-
-2. Do I need to remove the weird looking short trips that probably aren't real or the result of a duff fix?
 
