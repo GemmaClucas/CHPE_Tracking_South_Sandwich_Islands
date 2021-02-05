@@ -6,6 +6,7 @@
 predicted_tracks/*.pdf
 *.pdf
 *.gif
+*.jpg
 From_Vicky
 crawl_CHPE_prelim.R
 coastline_plus_ssi*
