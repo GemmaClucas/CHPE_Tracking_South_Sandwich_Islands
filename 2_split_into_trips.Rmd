@@ -327,7 +327,7 @@ filter_out_low_speed_sections <- function(x){
 This is very similar to above but uses ```Start_trip_new``` as the flag for the beginning of each trip.
 
 ```{r}
-plot_trip <- function(x) {
+plot_trips_trimmed <- function(x) {
   ggplot() +
     # plot the map first
     geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
@@ -364,20 +364,13 @@ plot_trip <- function(x) {
 
 
 
+### Run through these steps for each penguin
 
-
-
-
-
-
-
-
-
-### Penguin - 196697
+The numbers of the Ptt devices go from 196697 to 196716.
 
 Load crawled track.
 ```{r}
-penguin <- "196697"
+penguin <- "196716"
 predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
@@ -411,7 +404,7 @@ at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 ```
 
-It looks like 1.2 kph might be a good cut-off to use from this plot.
+Check that 1.2 kph looks like a good cut-off.
 
 
 Plot trips before doing any trimming.
@@ -429,7 +422,7 @@ invisible(lapply(plots, print))
 
 
 
-Filter out the low speed sections of the trips, remove trips with 1 or 0 observed fixes, then plot. Note the colour of the points denotes the speed over the previous 3 hours in kph.
+Filter out the low speed sections of the trips, remove trips with 1 or 0 observed fixes, then plot. Check that all trips with less than 2 observed fixes have been removed and that none of the real trips are missing.
 ```{r, message=FALSE}
 at_sea <- filter_out_low_speed_sections(at_sea) 
 
@@ -442,6 +435,8 @@ Keep_trips <- at_sea %>%
   filter(n > 1) %>% 
   pull(Trip) 
 at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
+
+# add Start_trip_new == TRUE to the end of the dataframe in case the last trip was trimmed
 at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
 
 # need this for plot_trips() function
@@ -453,334 +448,67 @@ plots <- at_sea %>%
   distinct(Trip) %>%                
   nrow() %>%                        # find number of trips
   seq(1, .) %>% 
-  purrr::map(., ~plot_trip(.x))
+  purrr::map(., ~plot_trips_trimmed(.x))
 
 invisible(lapply(plots, print))
 
 ```
 
-### Penguin - 196698
-
-```{r, message=FALSE, warning=FALSE}
-penguin <- "196698"
-predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
-
-# select the useful columns and rename
-track <- predObj %>%
-  dplyr::select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
-  dplyr::rename(LON = mu.x, LAT = mu.y)
-
-plot_track(track)
-
-# remove points on land
-at_sea <- remove_points_on_land(track)
-
-# plot to make sure it worked
-# at_sea %>%
-#     data.frame() %>%
-#     plot_track(.)
-
-# split into trips
-at_sea <- split_into_trips(at_sea)
-# head(at_sea) %>% kable
-# tail(at_sea) %>% kable
-
-# calc and plot speed 
-at_sea <- calc_avg_speed(at_sea)
-plot_avg_speed(at_sea)
-```
-
-1.2 kph seems like an ok cut-off for this one.
-
-Plot trips before doing any trimming.
+If everything seems to have worked, save the dataframe for each penguin and write to CSV.
 ```{r}
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
+# Just save as dataframe
+# assign(paste0("df_", penguin), data.frame(at_sea))
 
-plots <- at_sea %>%
-  data.frame() %>%                  # convert to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
-  purrr::map(., ~plot_trip_raw(.x))
-
-invisible(lapply(plots, print))
-
-```
-
-Trim and replot
-```{r}
-# remove low speed sections
-at_sea <- filter_out_low_speed_sections(at_sea) 
-
-# Remove duff trips
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
-at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
-
-# need this for plot_trips() function
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    
-
-# create plots for each trip
-plots <- at_sea %>%
-  data.frame() %>%                  
-  distinct(Trip) %>%                
-  nrow() %>%                        # find number of trips
-  seq(1, .) %>% 
-  purrr::map(., ~plot_trip(.x))
-
-#plot
-invisible(lapply(plots, print))
+# Save and write to csv
+# assign(paste0("df_", penguin), data.frame(at_sea)) %>% 
+#   write.csv(., paste0("Trimmed_trips/", 196716, "_trips.csv", sep = ""), row.names = FALSE)
 
 ```
 
 
-### Penguin - 196699
-
-```{r, message=FALSE, warning=FALSE}
-penguin <- "196699"
-predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
-
-# select the useful columns and rename
-track <- predObj %>%
-  dplyr::select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
-  dplyr::rename(LON = mu.x, LAT = mu.y)
-
-plot_track(track)
-
-# remove points on land
-at_sea <- remove_points_on_land(track)
-
-# plot to make sure it worked
-# at_sea %>%
-#     data.frame() %>%
-#     plot_track(.)
-
-# split into trips
-at_sea <- split_into_trips(at_sea)
-# head(at_sea) %>% kable
-# tail(at_sea) %>% kable
-
-# calc and plot speed 
-at_sea <- calc_avg_speed(at_sea)
-plot_avg_speed(at_sea)
-```
-
-This one is definitely a bit odd. 
-
-Plot trips before doing any trimming.
-```{r}
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
-
-plots <- at_sea %>%
-  data.frame() %>%                  # convert to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
-  purrr::map(., ~plot_trip_raw(.x))
-
-invisible(lapply(plots, print))
-
-```
-
-
-Trim and replot.
-```{r}
-# remove low speed sections
-at_sea <- filter_out_low_speed_sections(at_sea) 
-
-# Remove duff trips
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
-at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
-
-# need this for plot_trips() function
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    
-
-# create plots for each trip
-plots <- at_sea %>%
-  data.frame() %>%                  
-  distinct(Trip) %>%                
-  nrow() %>%                        # find number of trips
-  seq(1, .) %>% 
-  purrr::map(., ~plot_trip(.x))
-
-#plot
-invisible(lapply(plots, print))
-
-```
-
-### Penguin - 196700
-
-
-
-```{r, message=FALSE, warning=FALSE}
-penguin <- "196700"
-predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
-
-# select the useful columns and rename
-track <- predObj %>%
-  select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
-  rename(LON = mu.x, LAT = mu.y)
-
-plot_track(track)
-
-# remove points on land
-at_sea <- remove_points_on_land(track)
-
-# plot to make sure it worked
-# at_sea %>% data.frame() %>% plot_track(.)
-
-# split into trips
-at_sea <- split_into_trips(at_sea)
-# head(at_sea) %>% kable
-# tail(at_sea) %>% kable
-
-
-# calc and plot speed 
-at_sea <- calc_avg_speed(at_sea)
-plot_avg_speed(at_sea)
-```
-
-Also a bit odd. Not much data from this one and it looks like it returns to some point to the east of the island, as if all fixes are offset by some distance to the east towards the end of the observation period. Therefore splitting trips doesn't work well.
-
-Plot trips before doing any trimming.
-```{r}
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
-
-plots <- at_sea %>%
-  data.frame() %>%                  # convert to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
-  purrr::map(., ~plot_trip_raw(.x))
-
-invisible(lapply(plots, print))
-
-```
+Merge all dataframes and save the merged dataframe to a csv file.
 
 ```{r}
-# remove low speed sections
-at_sea <- filter_out_low_speed_sections(at_sea) 
-# head(at_sea)
-# tail(at_sea)
+# All <- df_196697 %>% 
+#   full_join(df_196698) %>% 
+#   full_join(df_196699) %>% 
+#   full_join(df_196700) %>% 
+#   full_join(df_196701) %>% 
+#   full_join(df_196702) %>% 
+#   full_join(df_196703) %>% 
+#   full_join(df_196704) %>% 
+#   full_join(df_196705) %>% 
+#   full_join(df_196706) %>% 
+#   full_join(df_196707) %>% 
+#   full_join(df_196708) %>% 
+#   full_join(df_196709) %>% 
+#   full_join(df_196710) %>% 
+#   full_join(df_196711) %>% 
+#   full_join(df_196712) %>% 
+#   full_join(df_196713) %>% 
+#   full_join(df_196714) %>% 
+#   full_join(df_196715) %>% 
+#   full_join(df_196716) 
+# 
+# All %>% select(-optional) %>% 
+#   select(-optional.1) %>% 
+#   select(-optional.2) %>% 
+#   write.csv(., file = "Trimmed_trips/All_trimmed_trips.csv", row.names = FALSE)
 
-# Remove duff trips
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
-at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
-
-# need this for plot_trips() function
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    
-
-# create plots for each trip
-plots <- at_sea %>%
-  data.frame() %>%                  
-  distinct(Trip) %>%                
-  nrow() %>%                        # find number of trips
-  seq(1, .) %>% 
-  purrr::map(., ~plot_trip(.x))
-
-#plot
-invisible(lapply(plots, print))
 
 ```
 
 
-### Penguin - 196707
-
-Using this one as we have the most data from this individual.
-
-```{r, message=FALSE, warning=FALSE}
-penguin <- "196707"
-predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
-
-# select the useful columns and rename
-track <- predObj %>%
-  select(Ptt, locType, Time_absolute, Time_since, mu.x, mu.y) %>%
-  rename(LON = mu.x, LAT = mu.y)
-
-plot_track(track)
-
-# remove points on land
-at_sea <- remove_points_on_land(track)
-
-# plot to make sure it worked
-# at_sea %>% data.frame() %>% plot_track(.)
-
-# split into trips
-at_sea <- split_into_trips(at_sea)
-# head(at_sea) %>% kable
-# tail(at_sea) %>% kable
 
 
-# calc and plot speed 
-at_sea <- calc_avg_speed(at_sea)
-plot_avg_speed(at_sea)
-```
-
-1.2 kph seems like a good cut-off for this one.
-
-Plot trips before doing any trimming.
-```{r}
-Start_row_indexes <- as.list(which(at_sea$Start_trip == TRUE))    # need this for plot_trips() function
-
-plots <- at_sea %>%
-  data.frame() %>%                  # convert to dataframe
-  distinct(Trip) %>%                # find number of trips
-  deframe() %>%                     # change to vector to pass to map
-  purrr::map(., ~plot_trip_raw(.x))
-
-invisible(lapply(plots, print))
-
-```
 
 
-Trim and replot
-```{r}
-# remove low speed sections
-at_sea <- filter_out_low_speed_sections(at_sea) 
-# head(at_sea)
-# tail(at_sea)
 
-# Remove duff trips
-Keep_trips <- at_sea %>% 
-  data.frame() %>% 
-  group_by(Trip) %>% 
-  filter(locType == "o") %>% 
-  count() %>% 
-  filter(n > 1) %>% 
-  pull(Trip) 
-at_sea <- at_sea %>% filter(Trip %in% Keep_trips)
-at_sea[nrow(at_sea), "Start_trip_new"] <- TRUE
 
-Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))    # need this for plot_trips() function
 
-# create plots for each trip
-plots <- at_sea %>%
-  data.frame() %>%                  
-  distinct(Trip) %>%                
-  nrow() %>%                        # find number of trips
-  seq(1, .) %>% 
-  purrr::map(., ~plot_trip(.x))
 
-#plot
-invisible(lapply(plots, print))
-```
+
+
 
 
 
