@@ -12,3 +12,7 @@ crawl_CHPE_prelim.R
 coastline_plus_ssi*
 crawl premoult new crawl for alice.R
 split into trips i think.R
+adels_chins_all.csv
+Seamask.df
+Seamask.prj
+Seamask.shx
