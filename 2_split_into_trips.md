@@ -424,7 +424,7 @@ The numbers of the Ptt devices go from 196697 to 196716.
 Load crawled track.
 
 ``` r
-penguin <- "196716"
+penguin <- "196707"
 predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
@@ -479,7 +479,7 @@ plots <- at_sea %>%
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-31.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-32.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-33.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-34.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-35.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-36.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-37.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-31.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-32.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-16-33.png)<!-- -->
 
 Filter out the low speed sections of the trips, remove trips with 1 or 0
 observed fixes, then plot. Check that all trips with less than 2
@@ -516,7 +516,124 @@ plots <- at_sea %>%
 invisible(lapply(plots, print))
 ```
 
-![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-28.png)<!-- -->
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-17-25.png)<!-- -->
+
+If trips are not being split up properly because there were no fixes
+within the buffer zone around the island, use this code to plot the
+problematic trip(s) and parse out sections of it to work out where the
+split should go. Change the number in `trip_number` for the trip that
+needs to be split, and add rows in increments, specified by `a`, to
+visualise when the penguin returns to the colony.
+
+``` r
+trip_number <- 25
+
+plot_trip_to_split <- function(trip_number, a) {
+  ggplot() +
+  # plot the map first
+  geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
+  geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
+  coord_equal() +
+  # add the points. This uses the trip number (x) to subset the dataframe by trip.
+  geom_point(data = data.frame(at_sea[c(Start_row_indexes[[trip_number]]:(Start_row_indexes[[trip_number]] + a)), ]), aes(x = LON, y = LAT, colour = Avg_speed)) +
+  theme_bw() +
+  # add headings for trip number and start/stop time
+  labs(color="Average speed",
+       subtitle = paste0("Trip start: ",
+                           data.frame(at_sea[Start_row_indexes[[trip_number]], ]) %>% dplyr::select(Time_absolute),
+                           ", Trip end: ",
+                           data.frame(at_sea[(Start_row_indexes[[trip_number]] + a), ]) %>% dplyr::select(Time_absolute))) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "aliceblue")) +
+  # size according to the dimensions of the trip
+  # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
+  coord_fixed(ratio = 1,
+              xlim = c(min(c(-33000, data.frame(at_sea[c(Start_row_indexes[[trip_number]]:(Start_row_indexes[[trip_number]] + a)), ]) %>% select(LON) %>% min())),
+                         max(c(-22000, data.frame(at_sea[c(Start_row_indexes[[trip_number]]:(Start_row_indexes[[trip_number]] + a)), ]) %>% select(LON) %>% max()))),
+                ylim = c(min(c(18000, data.frame(at_sea[c(Start_row_indexes[[trip_number]]:(Start_row_indexes[[trip_number]] + a)), ]) %>% select(LAT) %>% min())),
+                         max(c(28000, data.frame(at_sea[c(Start_row_indexes[[trip_number]]:(Start_row_indexes[[trip_number]] + a)), ]) %>% select(LAT) %>% max()))),
+              expand = TRUE,
+              clip = "on")
+}
+
+
+plot_trip_to_split(trip_number, 532)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+``` r
+plot_trip_to_split(trip_number, 650)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-2.png)<!-- -->
+
+``` r
+plot_trip_to_split(trip_number, 800)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-3.png)<!-- -->
+
+``` r
+plot_trip_to_split(trip_number, 900)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-4.png)<!-- -->
+
+``` r
+plot_trip_to_split(trip_number, 1200)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-5.png)<!-- -->
+
+``` r
+plot_trip_to_split(trip_number, 2000)
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-18-6.png)<!-- -->
+
+Below I have recorded where I have split trips by hand for each penguin.
+
+``` r
+#196707
+at_sea[(Start_row_indexes[[3]] + 298), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[14]] + 436), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[14]] + 836), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[24]] + 114), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[25]] + 439), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[25]] + 532), "Start_trip_new"] <- TRUE
+```
+
+Next, correct the trip numbers in the dataframe and replot the trips to
+make sure it’s worked.
+
+``` r
+# update where each trip begins
+Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))
+# make a sequence from 1 to the new number of trips
+seq <- c(1:(length(Start_row_indexes) -1))
+# correct the trip number in the dataframe
+at_sea$Trip <-
+  # this code takes the numbers in seq and repeats each for the number of rows between 
+  # the start of trip n+1 and trip n (i.e. the length of the current trip)
+  purrr::map(seq, ~rep(.x, each = (Start_row_indexes[[.x + 1]] - (Start_row_indexes[[.x]])))) %>% 
+  unlist() %>%    # the result has to be changed from a list to a vector
+  append(., values = tail(., n=1))    # and this repeats the last trip number once more and appends to the vector, otherwise it missed the last row
+
+
+# create plots for each trip
+plots <- at_sea %>%
+  data.frame() %>%                  
+  distinct(Trip) %>%                
+  nrow() %>%                        # find number of trips
+  seq(1, .) %>% 
+  purrr::map(., ~plot_trips_trimmed(.x))
+
+invisible(lapply(plots, print))
+```
+
+![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-4.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-5.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-6.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-7.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-8.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-9.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-10.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-11.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-12.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-13.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-14.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-15.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-16.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-17.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-18.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-19.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-20.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-21.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-22.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-23.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-24.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-25.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-26.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-27.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-28.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-29.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-30.png)<!-- -->![](2_split_into_trips_files/figure-gfm/unnamed-chunk-20-31.png)<!-- -->
 
 If everything seems to have worked, save the dataframe for each penguin
 and write to CSV.
@@ -526,8 +643,8 @@ and write to CSV.
 # assign(paste0("df_", penguin), data.frame(at_sea))
 
 # Save and write to csv
-# assign(paste0("df_", penguin), data.frame(at_sea)) %>% 
-#   write.csv(., paste0("Trimmed_trips/", 196716, "_trips.csv", sep = ""), row.names = FALSE)
+assign(paste0("df_", penguin), data.frame(at_sea)) %>%
+  write.csv(., paste0("Trimmed_trips/", penguin, "_trips.csv", sep = ""), row.names = FALSE)
 ```
 
 Merge all dataframes and save the merged dataframe to a csv file.
