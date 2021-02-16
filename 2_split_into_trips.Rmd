@@ -370,7 +370,7 @@ The numbers of the Ptt devices go from 196697 to 196716.
 
 Load crawled track.
 ```{r}
-penguin <- "196707"
+penguin <- "196702"
 predObj <- read.csv(paste0("predicted_tracks/", penguin, "_track.csv"), stringsAsFactors = FALSE)
 
 # select the useful columns and rename
@@ -404,7 +404,9 @@ at_sea <- calc_avg_speed(at_sea)
 plot_avg_speed(at_sea)
 ```
 
-Check that 1.2 kph looks like a good cut-off.
+Check that 1.2 kph looks like a good cut-off. 
+
+Note that for Ptt 196700, I used 2.2 kph as there were long sections (days) of movement inferred at speeds closer to 2 kph, which cannot be real. Also for Ptt 196701 I used 1.6 kph as a cut-off.
 
 
 Plot trips before doing any trimming.
@@ -454,11 +456,13 @@ invisible(lapply(plots, print))
 
 ```
 
-If trips are not being split up properly because there were no fixes within the buffer zone around the island, use this code to plot the problematic trip(s) and parse out sections of it to work out where the split should go. Change the number in ```trip_number``` for the trip that needs to be split, and add rows in increments, specified by ```a```, to visualise when the penguin returns to the colony.
+### Do any trips need to be split further?
+
+If trips are not being split up properly because there were no fixes within the buffer zone around the island, use this code to plot the problematic trip(s) and  work out where the split should go. Change the number in ```trip_number``` for the trip that needs to be split, and add rows in increments, specified by ```a```, to visualise when the penguin returns to the colony and leaves again.
 
 ```{r}
-
-trip_number <- 25
+# I HAVEN'T DONE ANYTHING ON 702 YET
+trip_number <- 15
 
 plot_trip_to_split <- function(trip_number, a) {
   ggplot() +
@@ -488,15 +492,11 @@ plot_trip_to_split <- function(trip_number, a) {
               expand = TRUE,
               clip = "on")
 }
-
-
-plot_trip_to_split(trip_number, 532)
-plot_trip_to_split(trip_number, 650)
-plot_trip_to_split(trip_number, 800)
-plot_trip_to_split(trip_number, 900)
-plot_trip_to_split(trip_number, 1200)
-plot_trip_to_split(trip_number, 2000)
-
+plot_trip_to_split(trip_number, 115)
+plot_trip_to_split(trip_number, 116)
+plot_trip_to_split(trip_number, 170)
+plot_trip_to_split(trip_number, 200)
+plot_trip_to_split(trip_number, 250)
 
 
 ```
@@ -504,16 +504,48 @@ plot_trip_to_split(trip_number, 2000)
 
 Below I have recorded where I have split trips by hand for each penguin.
 ```{r}
-#196707
-at_sea[(Start_row_indexes[[3]] + 298), "Start_trip_new"] <- TRUE
-at_sea[(Start_row_indexes[[14]] + 436), "Start_trip_new"] <- TRUE
-at_sea[(Start_row_indexes[[14]] + 836), "Start_trip_new"] <- TRUE
-at_sea[(Start_row_indexes[[24]] + 114), "Start_trip_new"] <- TRUE
-at_sea[(Start_row_indexes[[25]] + 439), "Start_trip_new"] <- TRUE
-at_sea[(Start_row_indexes[[25]] + 532), "Start_trip_new"] <- TRUE
+# # 196697
+# at_sea[(Start_row_indexes[[2]] + 269), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[2]] + 640), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[9]] + 291), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[11]] + 313), "Start_trip_new"] <- TRUE
+
+# # 196698
+# at_sea[(Start_row_indexes[[10]] + 1034), "Start_trip_new"] <- TRUE
+
+# # 196699
+# at_sea[(Start_row_indexes[[1]] + 188), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[2]] + 285), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[10]] + 210), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[10]] + 424), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[13]] + 515), "Start_trip_new"] <- TRUE
+
+# # 196700
+# at_sea[(Start_row_indexes[[4]] + 231), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[5]] + 155), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[5]] + 450), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[5]] + 711), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[5]] + 992), "Start_trip_new"] <- TRUE
+
+# 196701
+at_sea[(Start_row_indexes[[3]] + 333), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[5]] + 37), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[12]] + 289), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[12]] + 478), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[12]] + 687), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[14]] + 297), "Start_trip_new"] <- TRUE
+at_sea[(Start_row_indexes[[15]] + 116), "Start_trip_new"] <- TRUE
+
+# # 196707
+# at_sea[(Start_row_indexes[[3]] + 298), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[14]] + 436), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[14]] + 836), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[24]] + 114), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[25]] + 439), "Start_trip_new"] <- TRUE
+# at_sea[(Start_row_indexes[[25]] + 532), "Start_trip_new"] <- TRUE
 ```
 
-Next, correct the trip numbers in the dataframe and replot the trips to make sure it's worked.
+Next, correct the trip numbers in the dataframe and replot the trips to make sure it's worked (don't need to change anything for each penguin here, just run).
 ```{r}
 # update where each trip begins
 Start_row_indexes <- as.list(which(at_sea$Start_trip_new == TRUE))
