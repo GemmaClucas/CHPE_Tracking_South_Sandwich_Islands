@@ -1,0 +1,76 @@
+---
+title: "Pseudoabsences"
+author: "Gemma Clucas"
+date: "2/8/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(raster)
+library(tmap)
+library(tidyverse)
+library(rgdal)
+library(dismo)
+```
+
+
+### Create a raster of the area with land masked
+```{r}
+# Read in bathymetry raster
+SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
+  projectRaster(., crs=crs("+init=epsg:4326")) %>% 
+  crop(., c(-28, -20, -59.5, -56.6))
+# plot(SSI_bath_WGS84)
+
+# Read in shapefile for land
+SSI_WGS84 <- readOGR("Seamask.shp") %>% 
+  crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
+  spTransform(., crs("+init=epsg:4326"))
+
+# Use mask() to cut out land from the bathymetry raster
+# values(SSI_bath_WGS84) <- 1
+mask<-mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
+# plot(mask, xlim=c(-28,-20), ylim=c(-59.5,-56.5))
+tm_shape(mask) + tm_raster()
+```
+
+
+### Read in trimmed tracking data
+
+```{r}
+All <- read.csv("Trimmed_trips/All_trimmed_trips.csv", stringsAsFactors = FALSE)
+
+```
+
+
+### Sample the raster layer, avoiding land, to create 'background' points
+
+This just creates a random sample of 'background' points across the raster. They are not true pseudo-absences because we are not taking into account the presence data, instead we are randomly sampling points within the study area.
+
+```{r}
+birds<-unique(All$Ptt)
+allpseuds<-data.frame()
+i<-birds[1]
+#RUN THROUGH EACH BIRD IN TURN
+for(i in birds){
+  bird<-All[All$Ptt==i,] #subset 1 bird
+  pseud <- randomPoints(mask, n = (3*nrow(bird)) ,prob=F)
+  dat<-as.data.frame(pseud)
+  head(dat)
+  names(dat)<-c("Lon","Lat")
+  dat$b<-i
+  allpseuds<-rbind(allpseuds,dat)
+}
+head(allpseuds)
+
+as.data.frame(mask, xy = TRUE) %>% 
+  ggplot() +
+  geom_raster(aes(x=x, y=y, fill = full_ssi18a)) +
+  geom_point(data = allpseuds, aes(x=Lon, y=Lat)) +
+  coord_equal()
+```
+
+
+
+
