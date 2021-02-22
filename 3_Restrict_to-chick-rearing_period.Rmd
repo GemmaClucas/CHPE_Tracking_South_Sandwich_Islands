@@ -1,7 +1,7 @@
 ---
 title: "Discarding pre-moult trips"
 author: "Gemma Clucas"
-date: "2/10/2021"
+date: "2/22/2021"
 output: github_document
 ---
 
@@ -49,63 +49,6 @@ plot_distance <- function(x, penguin){
 
 ```
 
-### Function to visualize the trips
-Since not all trips are split perfectly, I want to visualize them all first to make sure there aren't any pre-moult trips that are compounded with chick-rearing trips.
-```{r}
-# Load map first
-Seamask<-readOGR("Seamask.shp")
-SSI <- raster::crop(Seamask, c(450000, 1095192, -795043.9, -100000))
-
-#Re-project to Lambert Azimuthal Equal Area
-SSI_laea<-spTransform(SSI, CRS=CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
-
-# convert to dataframe for use with ggplot2
-SSI_laea@data$id = rownames(SSI_laea@data)
-SSI_laea.points = fortify(SSI_laea, region="id")
-SSI_laea.df = plyr::join(SSI_laea.points, SSI_laea@data, by="id")
-
-# filter out only the polygons for the islands
-SSI_laea.df <- SSI_laea.df %>% filter(hole == TRUE)
-```
-
-
-
-Function for plotting the trips onto the map
-```{r}
-plot_trips_trimmed <- function(x) {
-  ggplot() +
-    # plot the map first
-    geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
-    geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
-    coord_equal() +
-    # add the points. This uses the trip number (x) to subset the dataframe by trip.
-    geom_point(data = data.frame(penguin_df[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]), aes(x = LON, y = LAT, colour = Avg_speed)) +
-    theme_bw() +
-    # add headings for trip number and start/stop time
-    labs(color="Average speed",
-         title = paste0("Trip ", x),
-         subtitle = paste0("Trip start: ",
-                           data.frame(penguin_df[Start_row_indexes[[x]], ]) %>% dplyr::select(Time_absolute),
-                           ", Trip end: ",
-                           data.frame(penguin_df[Start_row_indexes[[x+1]]-1, ]) %>% dplyr::select(Time_absolute),
-                           "\n # Observed locations: ", data.frame(penguin_df[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1), ]) %>%
-                             filter(locType == "o") %>% nrow())) +
-    theme(panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.background = element_rect(fill = "aliceblue")) +
-    # size according to the dimensions of the trip
-    # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
-    coord_fixed(ratio = 1,
-                xlim = c(min(c(-33000, data.frame(penguin_df[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% dplyr::select(LON) %>% min())),
-                         max(c(-22000, data.frame(penguin_df[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% dplyr::select(LON) %>% max()))),
-                ylim = c(min(c(18000, data.frame(penguin_df[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% dplyr::select(LAT) %>% min())),
-                         max(c(28000, data.frame(penguin_df[c(Start_row_indexes[[x]]:Start_row_indexes[[x+1]]-1),]) %>% dplyr::select(LAT) %>% max()))),
-                expand = TRUE,
-                clip = "on")
-
-}
-
-```
 
 ## Run through each penguin
 
@@ -118,129 +61,13 @@ penguin <- 196707
 # Filter dataframe
 penguin_df <- All %>% filter(Ptt == penguin)
 
-# Visalize the trips
-Start_row_indexes <- as.list(which(penguin_df$Start_trip_new == TRUE))    
-# create plots for each trip
-plots <- penguin_df %>%                  
-  distinct(Trip) %>%                
-  nrow() %>%                        # find number of trips
-  seq(1, .) %>% 
-  purrr::map(., ~plot_trips_trimmed(.x))
-
-invisible(lapply(plots, print))
-```
-
-
-If chick-rearing and pre-moult trips are not being split properly, then use this code to parse out sections of the final trip to work out where the split should go. Change the number in ```Start_row_indexes[x]``` for the trip that needs to be split, and add rows in increments to visualise when the penguin returns to the colony.
-
-Then add a new ```Start_trip_new = TRUE``` where the trip should be split.
-
-```{r}
-ggplot() +
-  # plot the map first
-  geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
-  geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
-  coord_equal() +
-  # add the points. This uses the trip number (x) to subset the dataframe by trip.
-  geom_point(data = data.frame(penguin_df[c(Start_row_indexes[[25]]:(Start_row_indexes[[25]] + 400)), ]), aes(x = LON, y = LAT, colour = Avg_speed)) +
-  theme_bw() +
-  # add headings for trip number and start/stop time
-  labs(color="Average speed",
-       subtitle = paste0("Trip start: ",
-                           data.frame(penguin_df[Start_row_indexes[[25]], ]) %>% dplyr::select(Time_absolute),
-                           ", Trip end: ",
-                           data.frame(penguin_df[(Start_row_indexes[[25]] + 400), ]) %>% dplyr::select(Time_absolute))) +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = "aliceblue")) +
-  # size according to the dimensions of the trip
-  # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
-  coord_fixed(ratio = 1,
-              xlim = c(-33000, 25000),
-              ylim = c(28000, -50000),
-              expand = TRUE,
-              clip = "on")
-
-ggplot() +
-  # plot the map first
-  geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
-  geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
-  coord_equal() +
-  # add the points. This uses the trip number (x) to subset the dataframe by trip.
-  geom_point(data = data.frame(penguin_df[c(Start_row_indexes[[25]]:(Start_row_indexes[[25]] + 425)), ]), aes(x = LON, y = LAT, colour = Avg_speed)) +
-  theme_bw() +
-  # add headings for trip number and start/stop time
-  labs(color="Average speed",
-       subtitle = paste0("Trip start: ",
-                           data.frame(penguin_df[Start_row_indexes[[25]], ]) %>% dplyr::select(Time_absolute),
-                           ", Trip end: ",
-                           data.frame(penguin_df[(Start_row_indexes[[25]] + 425), ]) %>% dplyr::select(Time_absolute))) +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = "aliceblue")) +
-  # size according to the dimensions of the trip
-  # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
-  coord_fixed(ratio = 1,
-              xlim = c(-33000, 25000),
-              ylim = c(28000, -50000),
-              expand = TRUE,
-              clip = "on")
-
-ggplot() +
-  # plot the map first
-  geom_polygon(data = SSI_laea.df, aes(x = long, y = lat, group = group), fill="grey50") +
-  geom_path(data = SSI_laea.df, aes(x = long, y = lat, group = group), color="grey50") +
-  coord_equal() +
-  # add the points. This uses the trip number (x) to subset the dataframe by trip.
-  geom_point(data = data.frame(penguin_df[c(Start_row_indexes[[25]]:(Start_row_indexes[[25]] + 500)), ]), aes(x = LON, y = LAT, colour = Avg_speed)) +
-  theme_bw() +
-  # add headings for trip number and start/stop time
-  labs(color="Average speed",
-       subtitle = paste0("Trip start: ",
-                           data.frame(penguin_df[Start_row_indexes[[25]], ]) %>% dplyr::select(Time_absolute),
-                           ", Trip end: ",
-                           data.frame(penguin_df[(Start_row_indexes[[25]] + 500), ]) %>% dplyr::select(Time_absolute))) +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = "aliceblue")) +
-  # size according to the dimensions of the trip
-  # Saunders is always plotted by taking the min/max value of the island or the trip points for specifying the plot dimensions
-  coord_fixed(ratio = 1,
-              xlim = c(-33000, 25000),
-              ylim = c(28000, -50000),
-              expand = TRUE,
-              clip = "on")
-
-
-```
-For 196707, the trip should be split at ```(Start_row_indexes[[25]] + 425)```
-
-```{r}
-penguin_df[(Start_row_indexes[[25]] + 425), "Start_trip_new"] <- TRUE
-
-
-# record where each trip begins
-Start_row_indexes <- as.list(which(at_sea2$Start_trip == TRUE))
-# make a sequence from 1 to the new number of trips
-seq <- c(1:(length(Start_row_indexes) -1))
-# add a column that records the trip number in the dataframe
-penguin_df$Trip <-
-  # this code takes the numbers in seq and repeats each for the number of rows between 
-  # the start of trip n+1 and trip n (i.e. the length of the current trip)
-  purrr::map(seq, ~rep(.x, each = (Start_row_indexes[[.x + 1]] - (Start_row_indexes[[.x]])))) %>% 
-  unlist() %>%    # the result has to be changed from a list to a vector
-  append(., values = tail(., n=1))    # and this repeats the last trip number once more and appends to the vector, otherwise it missed the last row
-```
-
-
-```{r}
 # Plot the maximum distance per trip
 plot_distance(All, penguin)
 ```
 
 ```{r}
 # Define trip(s) to remove
-remove <- 33
+remove <- 31
 
 # Remove those trips
 chick_rearing_df <- All %>% 
