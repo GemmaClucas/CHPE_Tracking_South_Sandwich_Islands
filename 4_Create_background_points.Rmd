@@ -104,8 +104,80 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   scale_fill_gradient2(low="dodgerblue4", mid="gainsboro", high="darkgreen") +
   ylab("Latitude") +
   xlab("Longitude") +
-  labs(colour = "Depth")
+  labs(colour = "Depth") +
+  xlim(c(-26.5, -26.35)) +
+  ylim(c(-57.875, -57.79))
 ```
+
+
+### Create a raster layer for the distance from the colony
+```{r}
+colony_lat<- -57.808 
+colony_lon<- -26.404
+
+# Find the colony cell in the study area raster
+j <- cellFromXY(mask, cbind(colony_lon, colony_lat))
+# Change the value of the cell where the colony is to 2 (all the other cells are 1)
+mask[j]<-2 
+
+# Check it worked
+# table(values(mask)) 
+
+# Create a distance raster from the colony
+dist<-gridDistance(mask, origin=2,omit=NA)
+plot(dist)
+```
+
+### Distance to shelf break
+```{r}
+# Use mask() to cut out land from the bathymetry raster
+# values(SSI_bath_WGS84) <- 1
+bathy_mask<-mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
+
+# Make a plot using the marmap package
+dat <- marmap::as.bathy(bathy_mask)
+autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
+  scale_fill_gradient2(low="dodgerblue4", mid="gainsboro", high="darkgreen") +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(colour = "Depth") 
+
+# basic contour plot but does not give labels
+bathy_mask %>% as.data.frame(xy = TRUE) %>% 
+  ggplot(aes(x = x, y = y, z = full_ssi18a)) +
+  geom_contour()
+
+# version using metR package, but currently borken
+library(metR)
+autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) + 
+  scale_fill_gradient2(low="dodgerblue4", mid="gainsboro", high="darkgreen") +
+  geom_contour(data = as.data.frame(bathy_mask, xy = TRUE), 
+               aes(x=x, y=y, z = full_ssi18a), 
+               colour = "white") +
+  geom_text_contour(data = as.data.frame(bathy_mask, xy = TRUE), 
+                    aes(z = full_ssi18a), 
+                    stroke = 0.2, 
+                    label.placement = label_placement_flattest()) +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(colour = "Depth") +
+  xlim(c(-26.7, -26)) +
+  ylim(c(-57.9, -57.6))
+```
+
+
+
+Make a raster which includes the distance to the shelf break. Haven't finished this yet, still need to calculate distances.
+```{r}
+contours <- rasterToContour(bathy_mask)
+plot(bathy_mask)
+plot(contours, add=TRUE)
+```
+
+
+you have the depth layer which you downloaded when you were here. 
+from that you can extract different contours using the rasterToContour funtion. 
+i think it is the gdistance function to calculate a distance raster from a polygon (ie distance to shelf break) but I cant find it anywhere in my code
 
 
 
