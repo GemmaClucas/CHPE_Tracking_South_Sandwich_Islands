@@ -1,0 +1,100 @@
+---
+title: "4_Sample_background_data"
+author: "Gemma Clucas"
+date: "2/23/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(raster)
+library(tidyverse)
+library(rgdal)
+library(dismo)
+library(marmap)
+library(ggfortify)
+
+select <- dplyr::select
+```
+
+### Tracking data from chick-rearing period
+Read it in and find the extent of the area covered - this will be the study area.
+```{r}
+All <- read.csv("Chick-rearing_trips/All_chick-rearing_trips.csv", stringsAsFactors = FALSE)
+
+# Make it spatial
+coordinates(All) <- ~LON + LAT
+proj4string(All) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+# Reproject to WGS84
+All <- spTransform(All, CRS = CRS("+proj=longlat +ellps=WGS84"))
+
+# Find the extent of the chick-rearing tracks
+extent(All)
+```
+
+
+### Create a raster of the study area with land masked
+```{r}
+# Read in bathymetry raster and crop to extent
+SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
+  projectRaster(., crs=crs("+init=epsg:4326")) %>% 
+  crop(., c(-27.96598, -24.623, -58.41806, -57.28708))
+
+# Read in shapefile for land
+SSI_WGS84 <- readOGR("Seamask.shp") %>% 
+  crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
+  spTransform(., crs("+init=epsg:4326"))
+
+# Use mask() to cut out land from the bathymetry raster
+# values(SSI_bath_WGS84) <- 1
+mask<-mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
+
+# Make a plot using the marmap package
+dat <- marmap::as.bathy(mask)
+autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
+  scale_fill_gradient2(low="dodgerblue4", mid="gainsboro", high="darkgreen") +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(colour = "Depth")
+```
+
+
+### Sample the raster layer to create 'background' points
+
+This just creates a random sample of 'background' points across the raster. They are not pseudo-absences because we are not taking into account the presence data, instead we are randomly sampling points within the study area.
+
+
+
+```{r}
+birds<-unique(All$Ptt)
+allpseuds<-data.frame()
+i<-birds[1]
+#RUN THROUGH EACH BIRD IN TURN
+for(i in birds){
+  bird<-All[All$Ptt==i,] #subset 1 bird
+  pseud <- randomPoints(mask, n = (nrow(bird)) ,prob=F) # this was originally 3*nrow
+  dat<-as.data.frame(pseud)
+  head(dat)
+  names(dat)<-c("Lon","Lat")
+  dat$b<-i
+  allpseuds<-rbind(allpseuds,dat)
+}
+head(allpseuds)
+
+as.data.frame(mask, xy = TRUE) %>% 
+  ggplot() +
+  geom_raster(aes(x=x, y=y, fill = full_ssi18a)) +
+  geom_point(data = allpseuds, aes(x=Lon, y=Lat)) +
+  coord_equal()
+
+autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
+  scale_fill_gradient2(low="dodgerblue4", mid="gainsboro", high="darkgreen") +
+  geom_point(inherit.aes = FALSE, data = allpseuds, aes(x=Lon, y=Lat), size = 0.1) +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(colour = "Depth")
+```
+
+
+Look at google earth engine for SST/chlorophylA: https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI
+
