@@ -175,8 +175,8 @@ plot(contours, add=TRUE)
 contour500 <- contours[contours@data$level == -500, ]
 
 # check the contour and the study area raster have the same projection
-crs(contour500)
-crs(mask)
+# crs(contour500)
+# crs(mask)
 # yes they do
 
 # Make the SpatialLinesDataFrame (contour500) into a raster with the same characteristics as the study area raster (mask)
@@ -185,10 +185,27 @@ r500 <- rasterize(contour500, mask, field = 1, background = NA)
 
 # Calculate the distance to the nearest non-NA cell
 shelfdist <- raster::distance(r500)
+
+# Mask the land
+shelfdist <- mask(shelfdist, SSI_WGS84, inverse=F)
 plot(shelfdist)
 
 ```
 
+### Bearing to the shelf break
+
+```{r}
+#first identify the nearest bit of shelf break using the contour line and the distance from colony raster created above
+costsum <- 
+rm(costsum)
+  raster::extract(dist,contour500) %>% 
+  unlist() %>% 
+  min()
+#dist is the distance from the colony raster 
+unl<-unlist(costsum) 
+UN<-unl[!is.na(unl)] 
+G<-min(UN)#THIS IS THE VALUE of the raster AT THE MINIMUM DISTANCE TO SHELF 
+```
 
 
 Look at google earth engine for SST/chlorophylA: https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI
