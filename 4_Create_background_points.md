@@ -1,27 +1,15 @@
----
-title: "4 Environmental Data"
-author: "Gemma Clucas"
-date: "2/23/2021"
-output: github_document
----
+4 Environmental Data
+================
+Gemma Clucas
+2/23/2021
 
-```{r setup, include=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
-library(raster)
-library(tidyverse)
-library(rgdal)
-library(dismo)
-library(marmap)
-library(ggfortify)
-library(metR)
-library(rgeos)
+### Tracking data from chick-rearing period
 
-select <- dplyr::select
-```
+Read it in and find the extent of the area covered - this will be the
+study
+area.
 
-### Load tracking data from chick-rearing period
-Read it in and find the extent of the area covered - this will be the study area.
-```{r}
+``` r
 All <- read.csv("Chick-rearing_trips/All_chick-rearing_trips.csv", stringsAsFactors = FALSE)
 
 # Make it spatial
@@ -34,11 +22,18 @@ All <- spTransform(All, CRS = CRS("+proj=longlat +ellps=WGS84"))
 extent(All)
 ```
 
+    ## class      : Extent 
+    ## xmin       : -27.96598 
+    ## xmax       : -24.623 
+    ## ymin       : -58.41806 
+    ## ymax       : -57.28708
 
 ### Create a raster of the study area with land masked
 
-This just creates a raster with all values set to 1 across the study area.
-```{r}
+This just creates a raster with all values set to 1 across the study
+area.
+
+``` r
 # Read in bathymetry raster and crop to extent
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
@@ -49,14 +44,21 @@ x <- SSI_bath_WGS84
 values(x) <- 1
 ```
 
+Crop out land from the study area raster using `mask()`.
 
-Crop out land from the study area raster using ```mask()```.
-```{r}
+``` r
 # Read in shapefile for land
 SSI_WGS84 <- readOGR("Seamask.shp") %>% 
   crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
   spTransform(., crs("+init=epsg:4326"))
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## with 1 features
+    ## It has 1 fields
+
+``` r
 # Use mask() to cut out land from the raster
 mask<-mask(x, SSI_WGS84, inverse=F)
 
@@ -64,12 +66,16 @@ mask<-mask(x, SSI_WGS84, inverse=F)
 plot(mask)
 ```
 
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-### Sample the raster layer to create 'background' points
+### Sample the raster layer to create ‘background’ points
 
-This just creates a random sample of 'background' points across the study area raster. It takes a little while for this to run, so I have saved the dataframe as a CSV and just read it in each time for efficiency.
+This just creates a random sample of ‘background’ points across the
+study area raster. It takes a little while for this to run, so I have
+saved the dataframe as a CSV and just read it in each time for
+efficiency.
 
-```{r}
+``` r
 # birds<-unique(All$Ptt)
 # background<-data.frame()
 # i<-birds[1]
@@ -96,12 +102,16 @@ as.data.frame(mask, xy = TRUE) %>%
   geom_point(data = background, aes(x=Lon, y=Lat)) +
   ylab("Latitude") +
   xlab("Longitude")
-
 ```
 
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
 ### Bathymetry
-I've already read in the bathymetry raster, so I'm just masking land and plotting.
-```{r}
+
+I’ve already read in the bathymetry raster, so I’m just masking land and
+plotting.
+
+``` r
 # Use mask() to cut out land from the bathymetry raster
 # values(SSI_bath_WGS84) <- 1
 bathy_mask<-mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
@@ -113,13 +123,18 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   ylab("Latitude") +
   xlab("Longitude") +
   labs(fill = "Depth") 
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+``` r
   # xlim(c(-26.5, -26.35)) +
   # ylim(c(-57.875, -57.79))
 ```
 
-
 ### Distance from the colony
-```{r}
+
+``` r
 colony_lat<- -57.808 
 colony_lon<- -26.404
 
@@ -136,10 +151,14 @@ dist<-gridDistance(mask, origin=2,omit=NA)
 plot(dist)
 ```
 
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
 ### Distance to shelf break
 
-Firstly, at what depth does the shelf break occur?
-```{r}
+Firstly, at what depth does the shelf break
+occur?
+
+``` r
 # plotting using metR package - can't figure out how to make it label all contour lines
 autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) + 
   scale_fill_gradient(low = "steelblue4", high = "lightblue") +
@@ -159,24 +178,43 @@ autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) +
   ylim(c(-57.9, -57.6))
 ```
 
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
 It seems like the shelf break occurs at around 500 - 1000m depth.
 
-So I need to make a raster that includes the distance to the shelf break from all points in the study area. I'm going to use the 500m depth contour.
+So I need to make a raster that includes the distance to the shelf break
+from all points in the study area.
 
-
-
-```{r}
+``` r
 # first draw contours every 100m
 contours <- rasterToContour(bathy_mask, nlevels = 46)
 plot(bathy_mask)
 plot(contours, add=TRUE)
+```
 
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
 # select just the 500m depth contour
 contour500 <- contours[contours@data$level == -500, ]
 
 # check the contour and the study area raster have the same projection
 crs(contour500)
+```
+
+    ## CRS arguments:
+    ##  +init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84
+    ## +towgs84=0,0,0
+
+``` r
 crs(mask)
+```
+
+    ## CRS arguments:
+    ##  +init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84
+    ## +towgs84=0,0,0
+
+``` r
 # yes they do
 
 # Make the SpatialLinesDataFrame (contour500) into a raster with the same characteristics as the study area raster (mask)
@@ -186,18 +224,18 @@ r500 <- rasterize(contour500, mask, field = 1, background = NA)
 # Calculate the distance to the nearest non-NA cell
 shelfdist <- raster::distance(r500)
 plot(shelfdist)
-
 ```
 
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->
 
-
-Look at google earth engine for SST/chlorophylA: https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI
-
+Look at google earth engine for SST/chlorophylA:
+<https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI>
 
 ### Messing around with KDEs and density plots
-This should go in a separate script really. 
+
 Can use this to formally calculate a KDE and plot
-```{r}
+
+``` r
 library(spatialEco)
 kde <- sp.kde(All, bw = 0.01, 
               nr = 50,
@@ -210,16 +248,23 @@ ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
   scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
 ```
 
-Or you can just plot the density directly from the ```SpatialPointsDataFrame``` using ```stat_density2d()```.
-```{r}
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+Or you can just plot the density directly from the
+`SpatialPointsDataFrame` using `stat_density2d()`.
+
+``` r
 ggplot(data = as.data.frame(All), aes(x = LON, y = LAT)) +
   stat_density2d(aes(alpha=..level..), geom = "polygon", fill = "orange") +
   scale_alpha(range=c(0.1,0.75),guide=FALSE)
-
 ```
 
-Plotting on top of bathymetry map
-```{r}
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+
+Plotting on top of bathymetry
+map
+
+``` r
 autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
   scale_fill_gradient(low = "steelblue4", high = "lightblue") +
   ylab("Latitude") +
@@ -232,4 +277,4 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   scale_alpha(range=c(0.2,0.9),guide=FALSE)
 ```
 
-
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
