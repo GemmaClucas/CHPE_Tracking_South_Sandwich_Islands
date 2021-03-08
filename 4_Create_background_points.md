@@ -3,7 +3,7 @@
 Gemma Clucas
 2/23/2021
 
-### Tracking data from chick-rearing period
+## Load tracking data from chick-rearing period
 
 Read it in and find the extent of the area covered - this will be the
 study
@@ -28,7 +28,7 @@ extent(All)
     ## ymin       : -58.41806 
     ## ymax       : -57.28708
 
-### Create a raster of the study area with land masked
+## Create a raster of the study area with land masked
 
 This just creates a raster with all values set to 1 across the study
 area.
@@ -68,7 +68,9 @@ plot(mask)
 
 ![](4_Create_background_points_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-### Sample the raster layer to create ‘background’ points
+**Should I be doing all this in LAEA?**
+
+## Sample the raster layer to create ‘background’ points
 
 This just creates a random sample of ‘background’ points across the
 study area raster. It takes a little while for this to run, so I have
@@ -106,7 +108,7 @@ as.data.frame(mask, xy = TRUE) %>%
 
 ![](4_Create_background_points_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
-### Bathymetry
+## Bathymetry
 
 I’ve already read in the bathymetry raster, so I’m just masking land and
 plotting.
@@ -132,7 +134,7 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   # ylim(c(-57.875, -57.79))
 ```
 
-### Distance from the colony
+## Distance from the colony
 
 ``` r
 colony_lat<- -57.808 
@@ -153,7 +155,10 @@ plot(dist)
 
 ![](4_Create_background_points_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
-### Distance to shelf break
+If I do everything in LAEA, how do I convert the lon/lat of the colony
+to LAEA?
+
+## Distance to shelf break
 
 Firstly, at what depth does the shelf break
 occur?
@@ -183,7 +188,8 @@ autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) +
 It seems like the shelf break occurs at around 500 - 1000m depth.
 
 So I need to make a raster that includes the distance to the shelf break
-from all points in the study area.
+from all points in the study area. I’m going to use the 500m depth
+contour.
 
 ``` r
 # first draw contours every 100m
@@ -199,22 +205,8 @@ plot(contours, add=TRUE)
 contour500 <- contours[contours@data$level == -500, ]
 
 # check the contour and the study area raster have the same projection
-crs(contour500)
-```
-
-    ## CRS arguments:
-    ##  +init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84
-    ## +towgs84=0,0,0
-
-``` r
-crs(mask)
-```
-
-    ## CRS arguments:
-    ##  +init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs +ellps=WGS84
-    ## +towgs84=0,0,0
-
-``` r
+# crs(contour500)
+# crs(mask)
 # yes they do
 
 # Make the SpatialLinesDataFrame (contour500) into a raster with the same characteristics as the study area raster (mask)
@@ -223,17 +215,47 @@ r500 <- rasterize(contour500, mask, field = 1, background = NA)
 
 # Calculate the distance to the nearest non-NA cell
 shelfdist <- raster::distance(r500)
+
+# Mask the land
+shelfdist <- mask(shelfdist, SSI_WGS84, inverse=F)
 plot(shelfdist)
 ```
 
 ![](4_Create_background_points_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->
 
-Look at google earth engine for SST/chlorophylA:
-<https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI>
+## Bearing to the shelf break
+
+``` r
+# get the values from the distance to colony raster along the 500m depth contour and find the minimum value
+# i.e. the minimum distance of the depth contour from the colony
+min500dist <- raster::extract(dist,contour500) %>% 
+  unlist() %>% 
+  min()
+
+# Change the raster into a dataframe, so that we can extract the coordinates of this minimum point
+as.data.frame(rasterToPoints(dist)) %>% 
+  dplyr::filter(layer == min500dist) %>% 
+  select(x,y)
+```
+
+    ##           x         y
+    ## 1 -26.36173 -57.82149
+
+``` r
+# So these are the coordinates of the nearest bit of shelf break
+shelf_lon <- -26.36173
+shelf_lat <- -57.82149
+
+bearing <- geosphere::bearingRhumb(c(colony_lon, colony_lat), c(shelf_lon, shelf_lat))
+```
+
+So the bearing to the nearest bit of shelf is 120.9276592 but this
+direction is actually blocked by land… what do I do about that?
 
 ### Messing around with KDEs and density plots
 
-Can use this to formally calculate a KDE and plot
+This should go in a separate script really and is not finished. Can use
+this to formally calculate a KDE and plot
 
 ``` r
 library(spatialEco)
@@ -248,7 +270,7 @@ ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
   scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 Or you can just plot the density directly from the
 `SpatialPointsDataFrame` using `stat_density2d()`.
@@ -259,7 +281,7 @@ ggplot(data = as.data.frame(All), aes(x = LON, y = LAT)) +
   scale_alpha(range=c(0.1,0.75),guide=FALSE)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 Plotting on top of bathymetry
 map
@@ -277,4 +299,9 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   scale_alpha(range=c(0.2,0.9),guide=FALSE)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+
+## Other things
+
+Look at google earth engine for SST/chlorophylA:
+<https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI>

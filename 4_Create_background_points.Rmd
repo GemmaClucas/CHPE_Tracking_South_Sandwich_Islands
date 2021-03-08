@@ -15,11 +15,12 @@ library(marmap)
 library(ggfortify)
 library(metR)
 library(rgeos)
+library(geosphere)
 
 select <- dplyr::select
 ```
 
-### Load tracking data from chick-rearing period
+## Load tracking data from chick-rearing period
 Read it in and find the extent of the area covered - this will be the study area.
 ```{r}
 All <- read.csv("Chick-rearing_trips/All_chick-rearing_trips.csv", stringsAsFactors = FALSE)
@@ -35,7 +36,7 @@ extent(All)
 ```
 
 
-### Create a raster of the study area with land masked
+## Create a raster of the study area with land masked
 
 This just creates a raster with all values set to 1 across the study area.
 ```{r}
@@ -64,8 +65,9 @@ mask<-mask(x, SSI_WGS84, inverse=F)
 plot(mask)
 ```
 
+**Should I be doing all this in LAEA?**
 
-### Sample the raster layer to create 'background' points
+## Sample the raster layer to create 'background' points
 
 This just creates a random sample of 'background' points across the study area raster. It takes a little while for this to run, so I have saved the dataframe as a CSV and just read it in each time for efficiency.
 
@@ -99,7 +101,7 @@ as.data.frame(mask, xy = TRUE) %>%
 
 ```
 
-### Bathymetry
+## Bathymetry
 I've already read in the bathymetry raster, so I'm just masking land and plotting.
 ```{r}
 # Use mask() to cut out land from the bathymetry raster
@@ -118,7 +120,7 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
 ```
 
 
-### Distance from the colony
+## Distance from the colony
 ```{r}
 colony_lat<- -57.808 
 colony_lon<- -26.404
@@ -136,7 +138,9 @@ dist<-gridDistance(mask, origin=2,omit=NA)
 plot(dist)
 ```
 
-### Distance to shelf break
+If I do everything in LAEA, how do I convert the lon/lat of the colony to LAEA?
+
+## Distance to shelf break
 
 Firstly, at what depth does the shelf break occur?
 ```{r}
@@ -192,27 +196,35 @@ plot(shelfdist)
 
 ```
 
-### Bearing to the shelf break
+## Bearing to the shelf break
 
 ```{r}
-#first identify the nearest bit of shelf break using the contour line and the distance from colony raster created above
-costsum <- 
-rm(costsum)
-  raster::extract(dist,contour500) %>% 
+# get the values from the distance to colony raster along the 500m depth contour and find the minimum value
+# i.e. the minimum distance of the depth contour from the colony
+min500dist <- raster::extract(dist,contour500) %>% 
   unlist() %>% 
   min()
-#dist is the distance from the colony raster 
-unl<-unlist(costsum) 
-UN<-unl[!is.na(unl)] 
-G<-min(UN)#THIS IS THE VALUE of the raster AT THE MINIMUM DISTANCE TO SHELF 
+
+# Change the raster into a dataframe, so that we can extract the coordinates of this minimum point
+as.data.frame(rasterToPoints(dist)) %>% 
+  dplyr::filter(layer == min500dist) %>% 
+  select(x,y)
+
+# So these are the coordinates of the nearest bit of shelf break
+shelf_lon <- -26.36173
+shelf_lat <- -57.82149
+
+bearing <- geosphere::bearingRhumb(c(colony_lon, colony_lat), c(shelf_lon, shelf_lat))
+
 ```
 
+So the bearing to the nearest bit of shelf is `r bearing` but this direction is actually blocked by land... what do I do about that? 
 
-Look at google earth engine for SST/chlorophylA: https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI
+
 
 
 ### Messing around with KDEs and density plots
-This should go in a separate script really. 
+This should go in a separate script really and is not finished. 
 Can use this to formally calculate a KDE and plot
 ```{r}
 library(spatialEco)
@@ -249,4 +261,6 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   scale_alpha(range=c(0.2,0.9),guide=FALSE)
 ```
 
+## Other things
+Look at google earth engine for SST/chlorophylA: https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI
 
