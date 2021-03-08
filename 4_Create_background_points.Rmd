@@ -65,7 +65,6 @@ mask<-mask(x, SSI_WGS84, inverse=F)
 plot(mask)
 ```
 
-**Should I be doing all this in LAEA?**
 
 ## Sample the raster layer to create 'background' points
 
@@ -121,6 +120,9 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
 
 
 ## Distance from the colony
+
+Need to update this so that they can't travel through land.
+
 ```{r}
 colony_lat<- -57.808 
 colony_lon<- -26.404
@@ -138,11 +140,10 @@ dist<-gridDistance(mask, origin=2,omit=NA)
 plot(dist)
 ```
 
-If I do everything in LAEA, how do I convert the lon/lat of the colony to LAEA?
 
 ## Distance to shelf break
 
-Firstly, at what depth does the shelf break occur?
+Firstly, view shelf break around the island.
 ```{r}
 # plotting using metR package - can't figure out how to make it label all contour lines
 autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) + 
@@ -165,7 +166,9 @@ autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) +
 
 It seems like the shelf break occurs at around 500 - 1000m depth.
 
-So I need to make a raster that includes the distance to the shelf break from all points in the study area. I'm going to use the 500m depth contour.
+UPDATE THIS TO THE 750M DEPTH CONTOUR 
+
+So I need to make a raster that includes the distance to the shelf break from all points in the study area. 
 
 
 
@@ -220,7 +223,9 @@ bearing <- geosphere::bearingRhumb(c(colony_lon, colony_lat), c(shelf_lon, shelf
 
 So the bearing to the nearest bit of shelf is `r bearing` but this direction is actually blocked by land... what do I do about that? 
 
+VICKY IS GOING TO LOOK FOR HER CODE ABOUT HOW TO MAKE THE DISTANCE FROM COLONY RASTER WITHOUT LETTING THEM GO THROUGH LAND, THIS WOULD THEN PROBABLY PICK OUT A PIECE OF SHELF BREAK THAT IS DUE EAST OF THE COLONY.
 
+NEXT, WORK OUT THE BEARING TO THIS NEAREST BIT OF SHELF BREAK FROM EVERY FIX.
 
 
 ### Messing around with KDEs and density plots
@@ -264,3 +269,4 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
 ## Other things
 Look at google earth engine for SST/chlorophylA: https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI
 
+VICKY USES MARINE COPERNICUS FOR THIS. START WITH SST AND CHLORA, BUT CAN ALSO LOOK AT EDDY KINETIC ENERGY AND SEA SURFACE HEIGHT ANOMOLY.
