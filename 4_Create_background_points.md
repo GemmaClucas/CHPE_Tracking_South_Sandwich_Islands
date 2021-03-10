@@ -68,8 +68,6 @@ plot(mask)
 
 ![](4_Create_background_points_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-**Should I be doing all this in LAEA?**
-
 ## Sample the raster layer to create ‘background’ points
 
 This just creates a random sample of ‘background’ points across the
@@ -149,19 +147,26 @@ mask[j]<-2
 # table(values(mask)) 
 
 # Create a distance raster from the colony
-dist<-gridDistance(mask, origin=2,omit=NA)
+# Moving through land is prevented by omiting cells with NA values
+dist<-gridDistance(mask, origin=2, omit=NA)
 plot(dist)
 ```
 
 ![](4_Create_background_points_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
-If I do everything in LAEA, how do I convert the lon/lat of the colony
-to LAEA?
+``` r
+plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7))
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
+
+The zoomed in plot shows that the distance raster does take into account
+land, when calculating at sea distances.
 
 ## Distance to shelf break
 
-Firstly, at what depth does the shelf break
-occur?
+Firstly, view shelf break around the
+island.
 
 ``` r
 # plotting using metR package - can't figure out how to make it label all contour lines
@@ -187,75 +192,78 @@ autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) +
 
 It seems like the shelf break occurs at around 500 - 1000m depth.
 
-So I need to make a raster that includes the distance to the shelf break
-from all points in the study area. I’m going to use the 500m depth
-contour.
+Make a raster that includes the distance to the shelf break from all
+points in the study area.
 
 ``` r
-# first draw contours every 100m
-contours <- rasterToContour(bathy_mask, nlevels = 46)
-plot(bathy_mask)
-plot(contours, add=TRUE)
-```
+# first draw contours every 50m
+contours <- rasterToContour(bathy_mask, nlevels = 92)
+# plot(bathy_mask)
+# plot(contours, add=TRUE)
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
-
-``` r
-# select just the 500m depth contour
-contour500 <- contours[contours@data$level == -500, ]
+# select just the 750m depth contour
+contour750 <- contours[contours@data$level == -750, ]
 
 # check the contour and the study area raster have the same projection
-# crs(contour500)
+# crs(contour750)
 # crs(mask)
 # yes they do
 
-# Make the SpatialLinesDataFrame (contour500) into a raster with the same characteristics as the study area raster (mask)
+# Make the SpatialLinesDataFrame (contour750) into a raster with the same characteristics as the study area raster (mask)
 # Set the contour pixels to 1, all others should be NA
-r500 <- rasterize(contour500, mask, field = 1, background = NA)
+r750 <- rasterize(contour750, mask, field = 1, background = NA)
 
 # Calculate the distance to the nearest non-NA cell
-shelfdist <- raster::distance(r500)
+shelfdist <- raster::distance(r750)
 
 # Mask the land
 shelfdist <- mask(shelfdist, SSI_WGS84, inverse=F)
 plot(shelfdist)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ## Bearing to the shelf break
 
 ``` r
-# get the values from the distance to colony raster along the 500m depth contour and find the minimum value
+# get the values from the distance to colony raster along the 750m depth contour and find the minimum value
 # i.e. the minimum distance of the depth contour from the colony
-min500dist <- raster::extract(dist,contour500) %>% 
+min750dist <- raster::extract(dist,contour750) %>% 
   unlist() %>% 
   min()
 
 # Change the raster into a dataframe, so that we can extract the coordinates of this minimum point
 as.data.frame(rasterToPoints(dist)) %>% 
-  dplyr::filter(layer == min500dist) %>% 
+  dplyr::filter(layer == min750dist) %>% 
   select(x,y)
 ```
 
     ##           x         y
-    ## 1 -26.36173 -57.82149
+    ## 1 -26.34801 -57.82869
 
 ``` r
 # So these are the coordinates of the nearest bit of shelf break
-shelf_lon <- -26.36173
-shelf_lat <- -57.82149
+shelf_lon <- -26.34801
+shelf_lat <- -57.82869  
 
 bearing <- geosphere::bearingRhumb(c(colony_lon, colony_lat), c(shelf_lon, shelf_lat))
 ```
 
-So the bearing to the nearest bit of shelf is 120.9276592 but this
-direction is actually blocked by land… what do I do about that?
+So the bearing to the nearest bit of shelf is 124.7535463 (southeast)
+but if you look down to the density plot below, the penguins tend to go
+due east from the colony.
 
-### Messing around with KDEs and density plots
+Next step would be to work out the bearing to this nearest bit of shelf
+break from every fix (and background point). But if they don’t seem to
+be honing in on this anyway, is it worth it?
 
-This should go in a separate script really and is not finished. Can use
-this to formally calculate a KDE and plot
+## Messing around with KDEs and density plots
+
+This should go in a separate script really and is not finished. I just
+wanted to be able to view the density of fixes when thinking about
+environmental variables.
+
+Can use this to formally calculate a KDE and plot
 
 ``` r
 library(spatialEco)
@@ -275,14 +283,6 @@ ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
 Or you can just plot the density directly from the
 `SpatialPointsDataFrame` using `stat_density2d()`.
 
-``` r
-ggplot(data = as.data.frame(All), aes(x = LON, y = LAT)) +
-  stat_density2d(aes(alpha=..level..), geom = "polygon", fill = "orange") +
-  scale_alpha(range=c(0.1,0.75),guide=FALSE)
-```
-
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
-
 Plotting on top of bathymetry
 map
 
@@ -299,9 +299,12 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   scale_alpha(range=c(0.2,0.9),guide=FALSE)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ## Other things
 
 Look at google earth engine for SST/chlorophylA:
 <https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI>
+
+VICKY USES MARINE COPERNICUS FOR THIS. START WITH SST AND CHLORA, BUT
+CAN ALSO LOOK AT EDDY KINETIC ENERGY AND SEA SURFACE HEIGHT ANOMOLY.
