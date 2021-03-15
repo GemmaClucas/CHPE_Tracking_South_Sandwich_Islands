@@ -16,6 +16,8 @@ library(ggfortify)
 library(metR)
 library(rgeos)
 library(geosphere)
+library(ggplot2)
+library(lubridate)
 
 select <- dplyr::select
 ```
@@ -24,6 +26,8 @@ select <- dplyr::select
 Read it in and find the extent of the area covered - this will be the study area.
 ```{r}
 All <- read.csv("Chick-rearing_trips/All_chick-rearing_trips.csv", stringsAsFactors = FALSE)
+# Keep one version as a dataframe
+All.df <- All
 
 # Make it spatial
 coordinates(All) <- ~LON + LAT
@@ -33,6 +37,16 @@ All <- spTransform(All, CRS = CRS("+proj=longlat +ellps=WGS84"))
 
 # Find the extent of the chick-rearing tracks
 extent(All)
+```
+
+What is the temporal distribution of the data? This isn't working. I can't figure out why it won't convert the characters in ```Time_absolute``` to a datetime. Spent too much time on this already, come back to it later.
+```{r}
+# All.df %>%
+#   dplyr::select("Time_absolute") %>% 
+#   as.POSIXct(tz = "UTC")
+# # lubridate also isn't working
+#   lubridate::ymd_hms("Time_absolute", tz = "UTC")
+
 ```
 
 
@@ -224,6 +238,123 @@ So the bearing to the nearest bit of shelf is `r bearing` (southeast) but if you
 
 
 Next step would be to work out the bearing to this nearest bit of shelf break from every fix (and background point). But if they don't seem to be honing in on this anyway, is it worth it?
+
+## GLOBAL-ANALYSIS-FORECAST-PHY-001-024-MONTHLY Dataset
+
+I have downloaded the monthly averaged dataset for January 2020 (1/16/2020) from https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_ANALYSIS_FORECAST_PHY_001_024
+
+I have selected seven variables (but I probably don't need them all) and subsetted the area from -60 to -55 lat, and -29 to -25 lon. The variables in the dataset are:
+1. mlotst = Density ocean mixed layer thickness
+2. vo = Northward sea water velocity
+3. thetao = Sea water potential temperature
+4. uo = Eastward sea water velocity
+5. bottomT = Sea water potential temperature at sea floor
+6. so = Salinity
+7. zos = Sea surface height above geoid
+
+
+There are 50 depth layers from 0.49m (surface) to 5727m. The data format is netCDF-3 and the CRS is WGS 84 (EPSG 4326). The resolution should be a 0.083 x 0.083 degree grid.
+
+I am following instructions from [this site](https://rpubs.com/boyerag/297592) to import the data into R.
+```{r}
+library(ncdf4) # package for netcdf manipulation
+
+nc_data <- nc_open('global-analysis-forecast-phy-001-024-monthly_1615738967905.nc')
+
+# Save the print(nc) dump to a text file
+# This shows all the variable names and the dimensions of the data
+{
+    sink('global-analysis-forecast-phy-001-024-monthly_1615738967905.txt')
+ print(nc_data)
+    sink()
+}
+
+
+```
+
+Read in the long/lat data.
+```{r}
+nc_lon <- ncvar_get(nc_data, "longitude")
+nc_lat <- ncvar_get(nc_data, "latitude", verbose = F)
+```
+
+
+### Sea surface temperature
+```{r}
+# Read in the temperature variable as an array
+temp.array <- ncvar_get(nc_data, "thetao")
+# There should be 49 longitudes, 61 latitudes, and 50 depth layers
+dim(temp.array) 
+```
+
+Take the surface depth i.e. the top slice of the depth data.
+```{r}
+surface.temp <- temp.array[, , 1] 
+```
+
+Save it as a raster. It needs to be transposed and flipped.
+```{r}
+SST <- raster(t(surface.temp), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
+SST <- flip(SST, direction='y')
+# mask land - I don't think the two rasters are quite matching up
+SST <- mask(SST, SSI_WGS84, inverse=F)
+#plot(SST)
+```
+
+Zoom in on study area.
+```{r}
+plot(SST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+```
+It's very blocky...
+
+
+### Sea surface height
+```{r}
+# Read in the variable as an array
+zos.array <- ncvar_get(nc_data, "zos")
+# There should be 49 longitudes and 61 latitudes
+dim(zos.array) 
+```
+
+
+Save it as a raster. It needs to be transposed and flipped.
+```{r}
+SS_height <- raster(t(zos.array), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
+SS_height <- flip(SS_height, direction='y')
+# mask land - I don't think the two rasters are quite matching up
+SS_height <- mask(SS_height, SSI_WGS84, inverse=F)
+#plot(SS_height)
+```
+
+Zoom in on study area.
+```{r}
+plot(SS_height, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+```
+
+## Water velocity
+
+```{r}
+north.array <- ncvar_get(nc_data, "vo")
+# take surface values
+north.array <- north.array[, , 1] 
+
+east.array <- ncvar_get(nc_data, "uo")
+# take surface values
+east.array <- east.array[, , 1]
+
+north_velocity <- raster(t(north.array), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
+north_velocity <- flip(north_velocity, direction='y')
+north_velocity <- mask(north_velocity, SSI_WGS84, inverse=F)
+
+east_velocity <- raster(t(east.array), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
+east_velocity <- flip(east_velocity, direction='y')
+east_velocity <- mask(east_velocity, SSI_WGS84, inverse=F)
+
+plot(north_velocity, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+plot(east_velocity, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+```
+
+
 
 
 ## Messing around with KDEs and density plots
