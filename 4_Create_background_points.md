@@ -365,7 +365,7 @@ dataset for January and February 2020 (monthly averages) from
 <https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_ANALYSIS_FORECAST_PHY_001_024>
 
 I have selected seven variables (but I probably don’t need them all) and
-subsetted the area from -60 to -55 lat, and -29 to -25 lon. The
+subsetted the area from -60 to -55 lat, and -29 to -24 lon. The
 variables in the dataset are: 1. mlotst - Density ocean mixed layer
 thickness 2. vo - Northward sea water velocity 3. thetao - Sea water
 potential temperature 4. uo - Eastward sea water velocity 5. bottomT -
@@ -383,28 +383,27 @@ although it varies with krill size. There is a depth layer at 25m in
 this dataset (also 21, 29, 34 m) but from eyeballing the data on the
 online viewer for temperature and chlorophyl (bioligcal dataset below)
 it looks like the patterns are very consistent, and only the magnitude
-of values really differs. Therefore, is it ok to carry on with just the
-surface layer characteristics, or should I also extract the 25m data and
-then check for correlations between them?
+of values really differs. Therefore, don’t include values for 25m deep
+as they will be highly correlated with surface values.
 
 I am following instructions from [this
 site](https://rpubs.com/boyerag/297592) to import the data into
 R.
 
 ``` r
-nc_data_Jan <- nc_open('global-analysis-forecast-phy-001-024-monthly_1615738967905.nc')
-nc_data_Feb <- nc_open('global-analysis-forecast-phy-001-024-monthly_February.nc')
+nc_data_Jan <- nc_open('global-analysis-forecast-phy-001-024-monthly_January2020.nc')
+nc_data_Feb <- nc_open('global-analysis-forecast-phy-001-024-monthly_February2020.nc')
 
 # Save the print(nc) dump to a text file
 # This shows all the variable names and the dimensions of the datasets
 {
-    sink('global-analysis-forecast-phy-001-024-monthly_1615738967905.txt')
+    sink('global-analysis-forecast-phy-001-024-monthly_January2020.txt')
  print(nc_data_Jan)
     sink()
 }
 # do the same for February
 {
-    sink('global-analysis-forecast-phy-001-024-monthly_February.txt')
+    sink('global-analysis-forecast-phy-001-024-monthly_February2020.txt')
  print(nc_data_Feb)
     sink()
 }
@@ -423,19 +422,19 @@ Read in the temperature variable as an array for Jan and Feb.
 
 ``` r
 temp.array.Jan <- ncvar_get(nc_data_Jan, "thetao")
-# There should be 49 longitudes, 61 latitudes, and 50 depth layers
+# There should be 61 longitudes, 61 latitudes, and 50 depth layers
 dim(temp.array.Jan) 
 ```
 
-    ## [1] 49 61 50
+    ## [1] 61 61 50
 
 ``` r
 temp.array.Feb <- ncvar_get(nc_data_Feb, "thetao")
-# There should be 49 longitudes, 61 latitudes, and 50 depth layers
+# There should be 61 longitudes, 61 latitudes, and 50 depth layers
 dim(temp.array.Feb) 
 ```
 
-    ## [1] 49 61 50
+    ## [1] 61 61 50
 
 Take the surface layer i.e. the top slice of the depth data.
 
@@ -515,13 +514,13 @@ zos.array.Feb <- ncvar_get(nc_data_Feb, "zos")
 dim(zos.array.Jan) 
 ```
 
-    ## [1] 49 61
+    ## [1] 61 61
 
 ``` r
 dim(zos.array.Feb) 
 ```
 
-    ## [1] 49 61
+    ## [1] 61 61
 
 Save as rasters.
 
@@ -695,21 +694,22 @@ nc_close(nc_data_Feb)
 ## Biological Oceanographic variables
 
 I have downloaded the data for January and February combined, so I only
-need to read in one netcdf file.
+need to read in one netcdf file. The dataset is:
+<https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_ANALYSIS_FORECAST_BIO_001_028>
 
 The dataset includes chlorophyll A and estimated phytoplankton
 concentration. Since these essentially measure the same thing, I am only
-going to include chlorophyll
-A.
+going to include chlorophyll A. Units are mg
+m-3.
 
 ``` r
-nc_biodata <- nc_open('global-analysis-forecast-bio-001-028-monthly_1616089636668.nc')
+nc_biodata <- nc_open('global-analysis-forecast-bio-001-028-monthly_JanFeb2020.nc')
 
 
 # Save the print(nc) dump to a text file
 # This shows all the variable names and the dimensions of the datasets
 {
-    sink('global-analysis-forecast-bio-001-028-monthly_1616089636668.txt')
+    sink('global-analysis-forecast-bio-001-028-monthly_JanFeb2020.txt')
  print(nc_biodata)
     sink()
 }
@@ -727,11 +727,11 @@ nc_biotime <- ncvar_get(nc_biodata, "time")
 
 ``` r
 chl.array <- ncvar_get(nc_biodata, "chl")
-# there should be 17 longitudes, 21 latitudes, 50 depth layers, and 2 times(months)
+# there should be 21 longitudes, 21 latitudes, 50 depth layers, and 2 times(months)
 dim(chl.array)
 ```
 
-    ## [1] 17 21 50  2
+    ## [1] 21 21 50  2
 
 ``` r
 # take surface values for Jan and Feb
@@ -794,14 +794,60 @@ background$chlorA <- raster::extract(wMeanChl, background)
 nc_close(nc_biodata)
 ```
 
-## Next steps
+## Save
 
-1.  Find mean dive depth of chinstraps = ~25m
-2.  Add layers for values at depth? The layers looks really similar to
-    sea surface - don’t add?
-3.  Write-out csv to finish this data collection phase
-4.  Correlation among covariates
-5.  GAMS
+Convert the SpatialPointsDataFrames to regular dataframes, do some
+rounding of the numbers, and write-out.
+
+``` r
+# Columns to round to 1 decimal places
+cols1 <- c("depth", "colonydist", "shelfdist")
+# Columns to round to 3 decimal places
+cols3 <- c("slope", "NorthVelocity", "EastVelocity")
+# Columns to round to 4 decimal places
+cols4 <- c("SST", "Height", "chlorA")
+
+All %>% data.frame() %>% 
+  mutate(across(cols1, round, 1)) %>% 
+  mutate(across(cols3, round, 3)) %>% 
+  mutate(across(cols4, round, 4)) %>% 
+  select(LON,
+         LAT,
+         Ptt,
+         Trip,
+         locType,
+         Time_absolute,
+         depth,
+         colonydist,
+         shelfdist,
+         slope,
+         SST,
+         Height,
+         NorthVelocity,
+         EastVelocity,
+         chlorA) %>% 
+  write.csv(file = "SampledLocationsWithEnvironmentalViariables.csv",quote = FALSE, row.names = FALSE)
+
+# Repeat for the background points
+background %>% data.frame() %>% 
+  rename(LON = Lon, LAT = Lat, Ptt = bird) %>% 
+  mutate(across(cols1, round, 1)) %>% 
+  mutate(across(cols3, round, 3)) %>% 
+  mutate(across(cols4, round, 4)) %>% 
+  select(LON,
+         LAT,
+         Ptt,
+         depth,
+         colonydist,
+         shelfdist,
+         slope,
+         SST,
+         Height,
+         NorthVelocity,
+         EastVelocity,
+         chlorA) %>% 
+  write.csv(file = "BackgroundLocationsWithEnvironmentalViariables.csv",quote = FALSE, row.names = FALSE)
+```
 
 ## Messing around with KDEs and density plots
 
@@ -824,7 +870,7 @@ ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
   scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
 
 Or you can just plot the density directly from the
 `SpatialPointsDataFrame` using `stat_density2d()`.
@@ -845,12 +891,4 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   scale_alpha(range=c(0.2,0.9),guide=FALSE)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
-
-## Other things
-
-Look at google earth engine for SST/chlorophylA:
-<https://developers.google.com/earth-engine/datasets/catalog/NASA_OCEANDATA_MODIS-Terra_L3SMI>
-
-VICKY USES MARINE COPERNICUS FOR THIS. START WITH SST AND CHLORA, BUT
-CAN ALSO LOOK AT EDDY KINETIC ENERGY AND SEA SURFACE HEIGHT ANOMOLY.
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-45-1.png)<!-- -->

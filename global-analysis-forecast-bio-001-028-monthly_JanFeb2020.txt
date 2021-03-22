@@ -1,0 +1,96 @@
+File global-analysis-forecast-bio-001-028-monthly_JanFeb2020.nc (NC_FORMAT_CLASSIC):
+
+     2 variables (excluding dimension variables):
+        float chl[longitude,latitude,depth,time]   
+            _FillValue: 9.96920996838687e+36
+            long_name: Total Chlorophyll
+            standard_name: mass_concentration_of_chlorophyll_a_in_sea_water
+            units: mg m-3
+            unit_long: milligram of Chlorophyll per cubic meter
+            add_offset: 0
+            scale_factor: 1
+            _ChunkSizes: 1
+             _ChunkSizes: 13
+             _ChunkSizes: 171
+             _ChunkSizes: 360
+        float phyc[longitude,latitude,depth,time]   
+            _FillValue: 9.96920996838687e+36
+            long_name: Total Phytoplankton
+            standard_name: mole_concentration_of_phytoplankton_expressed_as_carbon_in_sea_water
+            units: mmol m-3
+            unit_long: millimoles per cubic meter
+            add_offset: 0
+            scale_factor: 1
+            _ChunkSizes: 1
+             _ChunkSizes: 13
+             _ChunkSizes: 171
+             _ChunkSizes: 360
+
+     4 dimensions:
+        time  Size:2
+            long_name: Time (hours since 1950-01-01)
+            standard_name: time
+            axis: T
+            units: hours since 1950-01-01
+            calendar: gregorian
+            _ChunkSizes: 1
+            _CoordinateAxisType: Time
+            valid_min: 613980
+            valid_max: 614700
+        depth  Size:50
+            _FillValue: NaN
+            valid_min: 0.494024991989136
+            valid_max: 5727.9169921875
+            units: m
+            positive: down
+            unit_long: Meters
+            long_name: Depth
+            standard_name: depth
+            axis: Z
+            _ChunkSizes: 50
+            _CoordinateAxisType: Height
+            _CoordinateZisPositive: down
+        latitude  Size:21
+            _FillValue: NaN
+            valid_min: -60
+            valid_max: -55
+            step: 0.25
+            units: degrees_north
+            unit_long: Degrees North
+            long_name: Latitude
+            standard_name: latitude
+            axis: Y
+            _ChunkSizes: 681
+            _CoordinateAxisType: Lat
+        longitude  Size:21
+            _FillValue: NaN
+            valid_min: -29
+            valid_max: -24
+            step: 0.25
+            units: degrees_east
+            unit_long: Degrees East
+            long_name: Longitude
+            standard_name: longitude
+            axis: X
+            _ChunkSizes: 1440
+            _CoordinateAxisType: Lon
+
+    18 global attributes:
+        title: Monthly mean fields for product GLOBAL_ANALYSIS_FORECAST_BIO_001_028
+        references: http://marine.copernicus.eu
+        credit: E.U. Copernicus Marine Service Information (CMEMS)
+        licence: http://marine.copernicus.eu/services-portfolio/service-commitments-and-licence/
+        contact: servicedesk.cmems@mercator-ocean.eu
+        producer: CMEMS - Global Monitoring and Forecasting Centre
+        institution: Mercator Ocean
+        conventions: CF-1.6
+        area: GLOBAL
+        product: GLOBAL_ANALYSIS_FORECAST_BIO_001_028
+        dataset: global-analysis-forecast-bio-001-028-monthly
+        source: MERCATOR BIOMER4V2R1
+        product_user_manual: http://marine.copernicus.eu/documents/PUM/CMEMS-GLO-PUM-001-028.pdf
+        quality_information_document: http://marine.copernicus.eu/documents/QUID/CMEMS-GLO-QUID-001-028.pdf
+        _CoordSysBuilder: ucar.nc2.dataset.conv.CF1Convention
+        Conventions: CF-1.0
+        comment: 
+        history: Data extracted from dataset http://localhost:8080/thredds/dodsC/global-analysis-forecast-bio-001-028-monthly

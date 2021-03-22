@@ -1,0 +1,131 @@
+File global-analysis-forecast-phy-001-024-monthly_February2020.nc (NC_FORMAT_CLASSIC):
+
+     7 variables (excluding dimension variables):
+        short mlotst[longitude,latitude,time]   
+            _FillValue: -32767
+            long_name: Density ocean mixed layer thickness
+            standard_name: ocean_mixed_layer_thickness_defined_by_sigma_theta
+            units: m
+            unit_long: Meters
+            cell_methods: area: mean
+            add_offset: -0.152592554688454
+            scale_factor: 0.152592554688454
+        short vo[longitude,latitude,depth,time]   
+            _FillValue: -32767
+            long_name: Northward velocity
+            standard_name: northward_sea_water_velocity
+            units: m s-1
+            unit_long: Meters per second
+            cell_methods: area: mean
+            add_offset: 0
+            scale_factor: 0.000610370188951492
+        short thetao[longitude,latitude,depth,time]   
+            _FillValue: -32767
+            long_name: Temperature
+            standard_name: sea_water_potential_temperature
+            units: degrees_C
+            unit_long: Degrees Celsius
+            cell_methods: area: mean
+            add_offset: 21
+            scale_factor: 0.000732444226741791
+        short uo[longitude,latitude,depth,time]   
+            _FillValue: -32767
+            long_name: Eastward velocity
+            standard_name: eastward_sea_water_velocity
+            units: m s-1
+            unit_long: Meters per second
+            cell_methods: area: mean
+            add_offset: 0
+            scale_factor: 0.000610370188951492
+        short bottomT[longitude,latitude,time]   
+            _FillValue: -32767
+            long_name: Sea floor potential temperature
+            standard_name: sea_water_potential_temperature_at_sea_floor
+            units: degrees_C
+            unit_long: Degrees Celsius
+            cell_methods: area: mean
+            add_offset: 21
+            scale_factor: 0.000732444226741791
+        short so[longitude,latitude,depth,time]   
+            _FillValue: -32767
+            long_name: Salinity
+            standard_name: sea_water_salinity
+            units: 1e-3
+            unit_long: Practical Salinity Unit
+            cell_methods: area: mean
+            add_offset: -0.00152592547237873
+            scale_factor: 0.00152592547237873
+        short zos[longitude,latitude,time]   
+            _FillValue: -32767
+            long_name: Sea surface height
+            standard_name: sea_surface_height_above_geoid
+            units: m
+            unit_long: Meters
+            cell_methods: area: mean
+            add_offset: 0
+            scale_factor: 0.000305185094475746
+
+     4 dimensions:
+        time  Size:1
+            long_name: Time (hours since 1950-01-01)
+            standard_name: time
+            axis: T
+            units: hours since 1950-01-01
+            calendar: gregorian
+            _CoordinateAxisType: Time
+            valid_min: 614700
+            valid_max: 614700
+        latitude  Size:61
+            _FillValue: NaN
+            valid_min: -60
+            valid_max: -55
+            step: 0.0833358764648438
+            units: degrees_north
+            unit_long: Degrees North
+            long_name: Latitude
+            standard_name: latitude
+            axis: Y
+            _CoordinateAxisType: Lat
+        longitude  Size:61
+            _FillValue: NaN
+            valid_min: -29
+            valid_max: -24
+            step: 0.0833282470703125
+            units: degrees_east
+            unit_long: Degrees East
+            long_name: Longitude
+            standard_name: longitude
+            axis: X
+            _CoordinateAxisType: Lon
+        depth  Size:50
+            _FillValue: NaN
+            valid_min: 0.494024991989136
+            valid_max: 5727.9169921875
+            units: m
+            positive: down
+            unit_long: Meters
+            long_name: Depth
+            standard_name: depth
+            axis: Z
+            _CoordinateAxisType: Height
+            _CoordinateZisPositive: down
+
+    18 global attributes:
+        title: Monthly mean fields for product GLOBAL_ANALYSIS_FORECAST_PHY_001_024
+        references: http://marine.copernicus.eu
+        credit: E.U. Copernicus Marine Service Information (CMEMS)
+        licence: http://marine.copernicus.eu/services-portfolio/service-commitments-and-licence/
+        contact: servicedesk.cmems@mercator-ocean.eu
+        producer: CMEMS - Global Monitoring and Forecasting Centre
+        institution: Mercator Ocean
+        conventions: CF-1.6
+        area: GLOBAL
+        product: GLOBAL_ANALYSIS_FORECAST_PHY_001_024
+        dataset: global-analysis-forecast-phy-001-024-monthly
+        source: MERCATOR PSY4QV3R1
+        product_user_manual: http://marine.copernicus.eu/documents/PUM/CMEMS-GLO-PUM-001-024.pdf
+        quality_information_document: http://marine.copernicus.eu/documents/QUID/CMEMS-GLO-QUID-001-024.pdf
+        _CoordSysBuilder: ucar.nc2.dataset.conv.CF1Convention
+        Conventions: CF-1.0
+        comment: 
+        history: Data extracted from dataset http://localhost:8080/thredds/dodsC/global-analysis-forecast-phy-001-024-monthly
