@@ -30,18 +30,43 @@ extent(All)
     ## ymin       : -58.41806 
     ## ymax       : -57.28708
 
-What is the temporal distribution of the data? This isn’t working. I
-can’t figure out why it won’t convert the characters in
-`Time_absolute` to a datetime. Spent too much time on this already, come
-back to it later.
+What is the temporal distribution of the data? I had to add a new column
+to the dataframe to convert `Time_absolute` to real datetimes.
 
 ``` r
-# All.df %>%
-#   dplyr::select("Time_absolute") %>% 
-#   as.POSIXct(tz = "UTC")
-# # lubridate also isn't working
-#   lubridate::ymd_hms("Time_absolute", tz = "UTC")
+All.df <- All.df %>%
+  mutate(datetime = lubridate::ymd_hms(Time_absolute))
+
+ggplot(data = All.df) +
+  geom_density(aes(x = datetime), fill = "skyblue", colour = "skyblue") +
+  ylab("Density of observations") +
+  xlab("Date")
 ```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+So there are quite a few observations in February. How many?
+
+``` r
+# Add column for month
+All.df <- All.df %>% mutate(month = lubridate::month(datetime))
+
+n_obs <- nrow(All.df)
+All.df %>% group_by(month) %>% 
+  summarise(n = n(),
+            proportion = n/n_obs) %>% 
+  kable()
+```
+
+| month |     n | proportion |
+| ----: | ----: | ---------: |
+|     1 | 55468 |  0.6395185 |
+|     2 | 31266 |  0.3604815 |
+
+If 64% of the observations are in January and 36% are in February, then
+I should probably calculate a weighted average for the environmental
+variables (SST, sea surface height, velocity, chlorophyll a) for January
+and February.
 
 ## Create a raster of the study area with land masked
 
@@ -81,7 +106,7 @@ mask<-mask(x, SSI_WGS84, inverse=F)
 plot(mask)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ## Sample the raster layer to create ‘background’ points
 
@@ -119,7 +144,13 @@ as.data.frame(mask, xy = TRUE) %>%
   xlab("Longitude")
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
+# Make it spatial
+coordinates(background) <- ~Lon + Lat
+proj4string(background) <- CRS("+proj=longlat +ellps=WGS84")
+```
 
 ## Bathymetry
 
@@ -140,11 +171,19 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   labs(fill = "Depth") 
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
   # xlim(c(-26.5, -26.35)) +
   # ylim(c(-57.875, -57.79))
+```
+
+Sample the bathymetry layer to add the depth to each background and
+observed fix.
+
+``` r
+All$depth <- raster::extract(bathy_mask, All)
+background$depth <- raster::extract(bathy_mask, background)
 ```
 
 ## Distance from the colony
@@ -163,20 +202,28 @@ mask[j]<-2
 
 # Create a distance raster from the colony
 # Moving through land is prevented by omiting cells with NA values
-dist<-gridDistance(mask, origin=2, omit=NA)
+dist <- gridDistance(mask, origin=2, omit=NA)
 plot(dist)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7))
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
 
 The zoomed in plot shows that the distance raster does take into account
-land, when calculating at sea distances.
+land when calculating at sea distances.
+
+Sample the distance layer to add the distance to the colony for each
+background and observed fix.
+
+``` r
+All$colonydist <- raster::extract(dist, All)
+background$colonydist <- raster::extract(dist, background)
+```
 
 ## Distance to shelf break
 
@@ -203,40 +250,56 @@ autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) +
   ylim(c(-57.9, -57.6))
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 It seems like the shelf break occurs at around 500 - 1000m depth.
 
 Make a raster that includes the distance to the shelf break from all
-points in the study area.
+points in the study area. Doing this takes a while, so I have commented
+out the code that I used and just read in the resulting raster below.
 
 ``` r
 # first draw contours every 50m
 contours <- rasterToContour(bathy_mask, nlevels = 92)
-# plot(bathy_mask)
-# plot(contours, add=TRUE)
 
 # select just the 750m depth contour
 contour750 <- contours[contours@data$level == -750, ]
+# 
+# # check the contour and the study area raster have the same projection
+# # crs(contour750)
+# # crs(mask)
+# # yes they do
+# 
+# # Make the SpatialLinesDataFrame (contour750) into a raster with the same characteristics as the study area raster (mask)
+# # Set the contour pixels to 1, all others should be NA
+# r750 <- rasterize(contour750, mask, field = 1, background = NA)
+# 
+# # Calculate the distance to the nearest non-NA cell
+# shelfdist <- raster::distance(r750)
+# 
+# # Mask the land
+# shelfdist <- mask(shelfdist, SSI_WGS84, inverse=F)
+# plot(shelfdist)
+# 
+# writeRaster(shelfdist, filename = "Shelfdist_raster", format = "raster")
+```
 
-# check the contour and the study area raster have the same projection
-# crs(contour750)
-# crs(mask)
-# yes they do
+Read in the raster and plot.
 
-# Make the SpatialLinesDataFrame (contour750) into a raster with the same characteristics as the study area raster (mask)
-# Set the contour pixels to 1, all others should be NA
-r750 <- rasterize(contour750, mask, field = 1, background = NA)
-
-# Calculate the distance to the nearest non-NA cell
-shelfdist <- raster::distance(r750)
-
-# Mask the land
-shelfdist <- mask(shelfdist, SSI_WGS84, inverse=F)
+``` r
+shelfdist <- raster("Shelfdist_raster.grd")
 plot(shelfdist)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+Sample the distance layer to add the distance to the colony for each
+background and observed fix.
+
+``` r
+All$shelfdist <- raster::extract(shelfdist, All)
+background$shelfdist <- raster::extract(shelfdist, background)
+```
 
 ## Bearing to the shelf break
 
@@ -266,43 +329,83 @@ bearing <- geosphere::bearingRhumb(c(colony_lon, colony_lat), c(shelf_lon, shelf
 
 So the bearing to the nearest bit of shelf is 124.7535463 (southeast)
 but if you look down to the density plot below, the penguins tend to go
-due east from the colony.
+due east from the colony -\> not worth including the bearing to the
+colony in our gams.
 
-Next step would be to work out the bearing to this nearest bit of shelf
-break from every fix (and background point). But if they don’t seem to
-be honing in on this anyway, is it worth it?
+## Slope
 
-## GLOBAL-ANALYSIS-FORECAST-PHY-001-024-MONTHLY Dataset
+With the `terrain()` function, it seems like the number or neighbours
+can be either 4 or 8. According to the function description, 4 is better
+for smooth surfaces while 8 is better for rough. Given the scale of our
+study area, I would guess that it’s relatively smooth since it’s
+covering a very big distance, so I’m going to use 4. I ran with 8 and
+the plot looked almost identical, so I don’t think it will make a
+difference either way
+anyway.
 
-I have downloaded the monthly averaged dataset for January 2020
-(1/16/2020) from
+``` r
+slope4 <- terrain(x = bathy_mask, opt = "slope", unit = 'degrees', neighbours = 4)
+
+plot(slope4)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+
+Add the slope for each point to the the observed and background data.
+
+``` r
+All$slope <- raster::extract(slope4, All)
+background$slope <- raster::extract(slope4, background)
+```
+
+## Physical Oceanographic Variables Downloaded from the Copernicus Marine Service
+
+I have downloaded the GLOBAL-ANALYSIS-FORECAST-PHY-001-024-MONTHLY
+dataset for January and February 2020 (monthly averages) from
 <https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_ANALYSIS_FORECAST_PHY_001_024>
 
 I have selected seven variables (but I probably don’t need them all) and
 subsetted the area from -60 to -55 lat, and -29 to -25 lon. The
-variables in the dataset are: 1. mlotst = Density ocean mixed layer
-thickness 2. vo = Northward sea water velocity 3. thetao = Sea water
-potential temperature 4. uo = Eastward sea water velocity 5. bottomT =
-Sea water potential temperature at sea floor 6. so = Salinity 7. zos =
+variables in the dataset are: 1. mlotst - Density ocean mixed layer
+thickness 2. vo - Northward sea water velocity 3. thetao - Sea water
+potential temperature 4. uo - Eastward sea water velocity 5. bottomT -
+Sea water potential temperature at sea floor 6. so - Salinity 7. zos -
 Sea surface height above geoid
 
 There are 50 depth layers from 0.49m (surface) to 5727m. The data format
 is netCDF-3 and the CRS is WGS 84 (EPSG 4326). The resolution should be
 a 0.083 x 0.083 degree grid.
 
+Chinstraps’ mean dive depth seems to be about 25m from Miller &
+Trivelpiece
+(2008)\[<https://link.springer.com/article/10.1007/s00227-008-0909-z>\],
+although it varies with krill size. There is a depth layer at 25m in
+this dataset (also 21, 29, 34 m) but from eyeballing the data on the
+online viewer for temperature and chlorophyl (bioligcal dataset below)
+it looks like the patterns are very consistent, and only the magnitude
+of values really differs. Therefore, is it ok to carry on with just the
+surface layer characteristics, or should I also extract the 25m data and
+then check for correlations between them?
+
 I am following instructions from [this
-site](https://rpubs.com/boyerag/297592) to import the data into R.
+site](https://rpubs.com/boyerag/297592) to import the data into
+R.
 
 ``` r
-library(ncdf4) # package for netcdf manipulation
-
-nc_data <- nc_open('global-analysis-forecast-phy-001-024-monthly_1615738967905.nc')
+nc_data_Jan <- nc_open('global-analysis-forecast-phy-001-024-monthly_1615738967905.nc')
+nc_data_Feb <- nc_open('global-analysis-forecast-phy-001-024-monthly_February.nc')
 
 # Save the print(nc) dump to a text file
-# This shows all the variable names and the dimensions of the data
+# This shows all the variable names and the dimensions of the datasets
 {
     sink('global-analysis-forecast-phy-001-024-monthly_1615738967905.txt')
- print(nc_data)
+ print(nc_data_Jan)
+    sink()
+}
+# do the same for February
+{
+    sink('global-analysis-forecast-phy-001-024-monthly_February.txt')
+ print(nc_data_Feb)
     sink()
 }
 ```
@@ -310,108 +413,395 @@ nc_data <- nc_open('global-analysis-forecast-phy-001-024-monthly_1615738967905.n
 Read in the long/lat data.
 
 ``` r
-nc_lon <- ncvar_get(nc_data, "longitude")
-nc_lat <- ncvar_get(nc_data, "latitude", verbose = F)
+nc_lon <- ncvar_get(nc_data_Jan, "longitude")
+nc_lat <- ncvar_get(nc_data_Jan, "latitude", verbose = F)
 ```
 
 ### Sea surface temperature
 
+Read in the temperature variable as an array for Jan and Feb.
+
 ``` r
-# Read in the temperature variable as an array
-temp.array <- ncvar_get(nc_data, "thetao")
+temp.array.Jan <- ncvar_get(nc_data_Jan, "thetao")
 # There should be 49 longitudes, 61 latitudes, and 50 depth layers
-dim(temp.array) 
+dim(temp.array.Jan) 
 ```
 
     ## [1] 49 61 50
 
-Take the surface depth i.e. the top slice of the depth data.
-
 ``` r
-surface.temp <- temp.array[, , 1] 
+temp.array.Feb <- ncvar_get(nc_data_Feb, "thetao")
+# There should be 49 longitudes, 61 latitudes, and 50 depth layers
+dim(temp.array.Feb) 
 ```
 
-Save it as a raster. It needs to be transposed and
-flipped.
+    ## [1] 49 61 50
+
+Take the surface layer i.e. the top slice of the depth data.
 
 ``` r
-SST <- raster(t(surface.temp), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
-SST <- flip(SST, direction='y')
+surface.temp.Jan <- temp.array.Jan[, , 1] 
+surface.temp.Feb <- temp.array.Feb[, , 1] 
+```
+
+Convert to rasters and plot. They need to be transposed and flipped.
+
+``` r
 # mask land - I don't think the two rasters are quite matching up
-SST <- mask(SST, SSI_WGS84, inverse=F)
+#SST <- mask(SST, SSI_WGS84, inverse=F)
 #plot(SST)
+
+SST_Jan <- raster(t(surface.temp.Jan), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+SST_Feb <- raster(t(surface.temp.Feb), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+plot(SST_Jan)
 ```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+
+``` r
+plot(SST_Feb)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->
+
+Calculate the weighted mean for Jan and Feb and plot. Weighting January
+by 64%, since 64% of the observations were in Jan.
+
+``` r
+wMeanSST <- stack(c(SST_Jan, SST_Feb)) %>% 
+  weighted.mean(., w = c(0.64, 0.36))
+plot(wMeanSST)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 Zoom in on study
 area.
 
 ``` r
-plot(SST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
-It’s very blocky…
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
+Add the SST for each point to the the observed and background data.
+
+``` r
+All$SST <- raster::extract(wMeanSST, All)
+background$SST <- raster::extract(wMeanSST, background)
+```
 
 ### Sea surface height
 
 ``` r
 # Read in the variable as an array
-zos.array <- ncvar_get(nc_data, "zos")
+zos.array.Jan <- ncvar_get(nc_data_Jan, "zos")
+zos.array.Feb <- ncvar_get(nc_data_Feb, "zos")
 # There should be 49 longitudes and 61 latitudes
-dim(zos.array) 
+dim(zos.array.Jan) 
 ```
 
     ## [1] 49 61
 
-Save it as a raster. It needs to be transposed and
-flipped.
+``` r
+dim(zos.array.Feb) 
+```
+
+    ## [1] 49 61
+
+Save as rasters.
 
 ``` r
-SS_height <- raster(t(zos.array), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
-SS_height <- flip(SS_height, direction='y')
-# mask land - I don't think the two rasters are quite matching up
-SS_height <- mask(SS_height, SSI_WGS84, inverse=F)
-#plot(SS_height)
+SS_height_Jan <- raster(t(zos.array.Jan), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+SS_height_Feb <- raster(t(zos.array.Feb), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+plot(SS_height_Jan)
 ```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+
+``` r
+plot(SS_height_Feb)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-27-2.png)<!-- -->
+
+Calculate the weighted mean.
+
+``` r
+wMeanSSHeight <- stack(c(SS_height_Jan, SS_height_Feb)) %>% 
+  weighted.mean(., w = c(0.64, 0.36))
+plot(wMeanSSHeight)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
 Zoom in on study
 area.
 
 ``` r
-plot(SS_height, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+plot(wMeanSSHeight, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
-## Water velocity
+Add the sea surface height anomoly for the observed and background data.
 
 ``` r
-north.array <- ncvar_get(nc_data, "vo")
-# take surface values
-north.array <- north.array[, , 1] 
-
-east.array <- ncvar_get(nc_data, "uo")
-# take surface values
-east.array <- east.array[, , 1]
-
-north_velocity <- raster(t(north.array), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
-north_velocity <- flip(north_velocity, direction='y')
-north_velocity <- mask(north_velocity, SSI_WGS84, inverse=F)
-
-east_velocity <- raster(t(east.array), xmn=min(nc_lon), xmx=max(nc_lon), ymn=min(nc_lat), ymx=max(nc_lat), crs=crs("+init=epsg:4326"))
-east_velocity <- flip(east_velocity, direction='y')
-east_velocity <- mask(east_velocity, SSI_WGS84, inverse=F)
-
-plot(north_velocity, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+All$Height <- raster::extract(wMeanSSHeight, All)
+background$Height <- raster::extract(wMeanSSHeight, background)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+## Northward water velocity
 
 ``` r
-plot(east_velocity, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+north.array.Jan <- ncvar_get(nc_data_Jan, "vo")
+north.array.Feb <- ncvar_get(nc_data_Feb, "vo")
+
+# take surface values
+north.array.Jan <- north.array.Jan[, , 1]
+north.array.Feb <- north.array.Feb[, , 1]
+
+# transpose, flip, and rasterise
+north_velocity_Jan <- raster(t(north.array.Jan), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+north_velocity_Feb <- raster(t(north.array.Feb), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+plot(north_velocity_Jan)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+
+``` r
+plot(north_velocity_Feb)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-31-2.png)<!-- -->
+
+Calculate the weighted mean.
+
+``` r
+wMeanNorth <- stack(c(north_velocity_Jan, north_velocity_Feb)) %>% 
+  weighted.mean(., w = c(0.64, 0.36))
+plot(wMeanNorth)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+
+Add the northward water velocity for the observed and background data.
+
+``` r
+All$NorthVelocity <- raster::extract(wMeanNorth, All)
+background$NorthVelocity <- raster::extract(wMeanNorth, background)
+```
+
+## Eastward water velocity
+
+``` r
+east.array.Jan <- ncvar_get(nc_data_Jan, "uo")
+east.array.Feb <- ncvar_get(nc_data_Feb, "uo")
+
+# take surface values
+east.array.Jan <- east.array.Jan[, , 1]
+east.array.Feb <- east.array.Feb[, , 1]
+
+# transpose, flip, and rasterise
+east_velocity_Jan <- raster(t(east.array.Jan), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+east_velocity_Feb <- raster(t(east.array.Feb), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+plot(east_velocity_Jan)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+
+``` r
+plot(east_velocity_Feb)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-34-2.png)<!-- -->
+
+Calculate the weighted mean.
+
+``` r
+wMeanEast <- stack(c(east_velocity_Jan, east_velocity_Feb)) %>% 
+  weighted.mean(., w = c(0.64, 0.36))
+plot(wMeanEast)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+
+Add the eastward water velocity for the observed and background data.
+
+``` r
+All$EastVelocity <- raster::extract(wMeanEast, All)
+background$EastVelocity <- raster::extract(wMeanEast, background)
+
+nc_close(nc_data_Jan)
+nc_close(nc_data_Feb)
+```
+
+## Biological Oceanographic variables
+
+I have downloaded the data for January and February combined, so I only
+need to read in one netcdf file.
+
+The dataset includes chlorophyll A and estimated phytoplankton
+concentration. Since these essentially measure the same thing, I am only
+going to include chlorophyll
+A.
+
+``` r
+nc_biodata <- nc_open('global-analysis-forecast-bio-001-028-monthly_1616089636668.nc')
+
+
+# Save the print(nc) dump to a text file
+# This shows all the variable names and the dimensions of the datasets
+{
+    sink('global-analysis-forecast-bio-001-028-monthly_1616089636668.txt')
+ print(nc_biodata)
+    sink()
+}
+```
+
+## Chlorophyll A
+
+Read in the long/lat and time(month) data.
+
+``` r
+nc_biolon <- ncvar_get(nc_biodata, "longitude")
+nc_biolat <- ncvar_get(nc_biodata, "latitude", verbose = F)
+nc_biotime <- ncvar_get(nc_biodata, "time")
+```
+
+``` r
+chl.array <- ncvar_get(nc_biodata, "chl")
+# there should be 17 longitudes, 21 latitudes, 50 depth layers, and 2 times(months)
+dim(chl.array)
+```
+
+    ## [1] 17 21 50  2
+
+``` r
+# take surface values for Jan and Feb
+chl.array.Jan <- chl.array[, , 1, 1]
+chl.array.Feb <- chl.array[, , 1, 2]
+
+# transpose, flip, and rasterise
+chl_Jan <- raster(t(chl.array.Jan), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+chl_Feb <- raster(t(chl.array.Feb), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+
+plot(chl_Jan)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+
+``` r
+plot(chl_Feb)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-39-2.png)<!-- -->
+
+Calculate the weighted mean.
+
+``` r
+wMeanChl <- stack(c(chl_Jan, chl_Feb)) %>% 
+  weighted.mean(., w = c(0.64, 0.36))
+plot(wMeanChl)
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+
+Zoom in on study
+area.
+
+``` r
+plot(wMeanChl, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+```
+
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
+
+Add chlorA for the observed and background data.
+
+``` r
+All$chlorA <- raster::extract(wMeanChl, All)
+background$chlorA <- raster::extract(wMeanChl, background)
+
+nc_close(nc_biodata)
+```
+
+## Next steps
+
+1.  Find mean dive depth of chinstraps = ~25m
+2.  Add layers for values at depth? The layers looks really similar to
+    sea surface - don’t add?
+3.  Write-out csv to finish this data collection phase
+4.  Correlation among covariates
+5.  GAMS
 
 ## Messing around with KDEs and density plots
 
@@ -434,7 +824,7 @@ ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
   scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
 
 Or you can just plot the density directly from the
 `SpatialPointsDataFrame` using `stat_density2d()`.
@@ -455,7 +845,7 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
   scale_alpha(range=c(0.2,0.9),guide=FALSE)
 ```
 
-![](4_Create_background_points_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](4_Create_background_points_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
 
 ## Other things
 
