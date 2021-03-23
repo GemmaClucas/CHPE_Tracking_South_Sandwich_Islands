@@ -900,55 +900,7 @@ background %>% data.frame() %>%
 ## Are any of these variables correlated with one another?
 
 Taking this from
-(here)\[<https://statsandr.com/blog/correlation-coefficient-and-correlation-test-in-r/>\].
-
-Function to make plot showing correlation coefficient by colour, while
-non-significant values will be in a white box.
-
-``` r
-corrplot2 <- function(data,
-                      method = "pearson",
-                      sig.level = 0.05,
-                      order = "original",
-                      diag = FALSE,
-                      type = "upper",
-                      tl.srt = 90,
-                      number.font = 1,
-                      number.cex = 1,
-                      mar = c(0, 0, 0, 0)) {
-  library(corrplot)
-  data_incomplete <- data
-  data <- data[complete.cases(data), ]
-  mat <- cor(data, method = method)
-  cor.mtest <- function(mat, method) {
-    mat <- as.matrix(mat)
-    n <- ncol(mat)
-    p.mat <- matrix(NA, n, n)
-    diag(p.mat) <- 0
-    for (i in 1:(n - 1)) {
-      for (j in (i + 1):n) {
-        tmp <- cor.test(mat[, i], mat[, j], method = method)
-        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
-      }
-    }
-    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
-    p.mat
-  }
-  p.mat <- cor.mtest(data, method = method)
-  col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
-  corrplot(mat,
-    method = "color", col = col(200), number.font = number.font,
-    mar = mar, number.cex = number.cex,
-    type = type, order = order,
-    addCoef.col = "black", # add correlation coefficient
-    tl.col = "black", tl.srt = tl.srt, # rotation of text labels
-    # combine with significance level
-    p.mat = p.mat, sig.level = sig.level, insig = "blank",
-    # hide correlation coefficients on the diagonal
-    diag = diag
-  )
-}
-```
+[here](https://statsandr.com/blog/correlation-coefficient-and-correlation-test-in-r/).
 
 ``` r
 dat <- background %>% data.frame() %>% 
@@ -965,25 +917,6 @@ dat <- background %>% data.frame() %>%
          EastVelocity,
          chlorA)
 
-library(corrplot)
-corrplot2(
-  data = dat,
-  method = "pearson",
-  sig.level = 0.05,
-  order = "original",
-  diag = FALSE,
-  type = "upper",
-  tl.srt = 75
-)
-```
-
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
-
-I find this correlation plot hard to interpret. I might get rid of it.
-All are significant according to the correlation test, but coefficients
-vary.
-
-``` r
 library(correlation)
 
 correlation::correlation(dat,
@@ -1042,3 +975,9 @@ with correlation coefficient \>|0.7| (or close to that value) are:
 2.  Depth and distance to the shelf break (-0.8)
 3.  Distance to the shelf break and distance to the colony (0.78)
 4.  SST and sea surface height (0.68)
+
+So I need to evaluate which one improves model perfermance the most out
+of depth, distance to the colony, and distance to the shelf break, and
+just include that one.
+
+And for SST vs sea surface height, I could do the same, or just use SST.
