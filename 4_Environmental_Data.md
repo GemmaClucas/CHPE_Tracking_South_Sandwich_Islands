@@ -186,6 +186,50 @@ All$depth <- raster::extract(bathy_mask, All)
 background$depth <- raster::extract(bathy_mask, background)
 ```
 
+## Messing around with KDEs and density plots
+
+This should go in a separate script really and is not finished. I just
+wanted to be able to view the density of fixes when thinking about
+environmental variables.
+
+Can use this to formally calculate a KDE and plot
+
+``` r
+library(spatialEco)
+kde <- sp.kde(All, bw = 0.01, 
+              nr = 50,
+              nc = 50,
+              standardize = TRUE)
+
+ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
+  geom_contour_fill(aes(z = kde)) +
+  #scale_fill_gradient(low = "yellow", high = "red") +
+  scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
+```
+
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+Or you can just plot the density directly from the
+`SpatialPointsDataFrame` using `stat_density2d()`.
+
+Plotting on top of bathymetry
+map
+
+``` r
+autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth") +
+  stat_density2d(data = as.data.frame(All),
+                 aes(x = LON, y = LAT, alpha = ..level..), 
+                 geom = "polygon", 
+                 fill = "red") +
+  scale_alpha(range=c(0.2,0.9),guide=FALSE)
+```
+
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+
 ## Distance from the colony
 
 ``` r
@@ -206,13 +250,13 @@ dist <- gridDistance(mask, origin=2, omit=NA)
 plot(dist)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7))
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
 
 The zoomed in plot shows that the distance raster does take into account
 land when calculating at sea distances.
@@ -250,7 +294,7 @@ autoplot(dat, geom=c("raster"), coast = FALSE, colour="white", size=0.1) +
   ylim(c(-57.9, -57.6))
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 It seems like the shelf break occurs at around 500 - 1000m depth.
 
@@ -291,7 +335,7 @@ shelfdist <- raster("Shelfdist_raster.grd")
 plot(shelfdist)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 Sample the distance layer to add the distance to the colony for each
 background and observed fix.
@@ -349,7 +393,7 @@ slope4 <- terrain(x = bathy_mask, opt = "slope", unit = 'degrees', neighbours = 
 plot(slope4)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 Add the slope for each point to the the observed and background data.
 
@@ -366,11 +410,15 @@ dataset for January and February 2020 (monthly averages) from
 
 I have selected seven variables (but I probably don’t need them all) and
 subsetted the area from -60 to -55 lat, and -29 to -24 lon. The
-variables in the dataset are: 1. mlotst - Density ocean mixed layer
-thickness 2. vo - Northward sea water velocity 3. thetao - Sea water
-potential temperature 4. uo - Eastward sea water velocity 5. bottomT -
-Sea water potential temperature at sea floor 6. so - Salinity 7. zos -
-Sea surface height above geoid
+variables in the dataset are:
+
+1.  mlotst - Density ocean mixed layer thickness
+2.  vo - Northward sea water velocity
+3.  thetao - Sea water potential temperature
+4.  uo - Eastward sea water velocity
+5.  bottomT - Sea water potential temperature at sea floor
+6.  so - Salinity
+7.  zos - Sea surface height above geoid
 
 There are 50 depth layers from 0.49m (surface) to 5727m. The data format
 is netCDF-3 and the CRS is WGS 84 (EPSG 4326). The resolution should be
@@ -469,13 +517,13 @@ SST_Feb <- raster(t(surface.temp.Feb),
 plot(SST_Jan)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 ``` r
 plot(SST_Feb)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-24-2.png)<!-- -->
 
 Calculate the weighted mean for Jan and Feb and plot. Weighting January
 by 64%, since 64% of the observations were in Jan.
@@ -486,7 +534,7 @@ wMeanSST <- stack(c(SST_Jan, SST_Feb)) %>%
 plot(wMeanSST)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 Zoom in on study
 area.
@@ -495,7 +543,7 @@ area.
 plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
 Add the SST for each point to the the observed and background data.
 
@@ -544,13 +592,13 @@ SS_height_Feb <- raster(t(zos.array.Feb),
 plot(SS_height_Jan)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
 ``` r
 plot(SS_height_Feb)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-27-2.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-29-2.png)<!-- -->
 
 Calculate the weighted mean.
 
@@ -560,7 +608,7 @@ wMeanSSHeight <- stack(c(SS_height_Jan, SS_height_Feb)) %>%
 plot(wMeanSSHeight)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 Zoom in on study
 area.
@@ -569,7 +617,7 @@ area.
 plot(wMeanSSHeight, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
 
 Add the sea surface height anomoly for the observed and background data.
 
@@ -608,13 +656,13 @@ north_velocity_Feb <- raster(t(north.array.Feb),
 plot(north_velocity_Jan)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
 
 ``` r
 plot(north_velocity_Feb)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-31-2.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-33-2.png)<!-- -->
 
 Calculate the weighted mean.
 
@@ -624,7 +672,7 @@ wMeanNorth <- stack(c(north_velocity_Jan, north_velocity_Feb)) %>%
 plot(wMeanNorth)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
 
 Add the northward water velocity for the observed and background data.
 
@@ -663,13 +711,13 @@ east_velocity_Feb <- raster(t(east.array.Feb),
 plot(east_velocity_Jan)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
 
 ``` r
 plot(east_velocity_Feb)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-34-2.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-36-2.png)<!-- -->
 
 Calculate the weighted mean.
 
@@ -679,7 +727,7 @@ wMeanEast <- stack(c(east_velocity_Jan, east_velocity_Feb)) %>%
 plot(wMeanEast)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 Add the eastward water velocity for the observed and background data.
 
@@ -758,13 +806,13 @@ chl_Feb <- raster(t(chl.array.Feb),
 plot(chl_Jan)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-39-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
 
 ``` r
 plot(chl_Feb)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-39-2.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-41-2.png)<!-- -->
 
 Calculate the weighted mean.
 
@@ -774,7 +822,7 @@ wMeanChl <- stack(c(chl_Jan, chl_Feb)) %>%
 plot(wMeanChl)
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
 
 Zoom in on study
 area.
@@ -783,7 +831,7 @@ area.
 plot(wMeanChl, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-43-1.png)<!-- -->
 
 Add chlorA for the observed and background data.
 
@@ -849,46 +897,148 @@ background %>% data.frame() %>%
   write.csv(file = "BackgroundLocationsWithEnvironmentalViariables.csv",quote = FALSE, row.names = FALSE)
 ```
 
-## Messing around with KDEs and density plots
+## Are any of these variables correlated with one another?
 
-This should go in a separate script really and is not finished. I just
-wanted to be able to view the density of fixes when thinking about
-environmental variables.
+Taking this from
+(here)\[<https://statsandr.com/blog/correlation-coefficient-and-correlation-test-in-r/>\].
 
-Can use this to formally calculate a KDE and plot
-
-``` r
-library(spatialEco)
-kde <- sp.kde(All, bw = 0.01, 
-              nr = 50,
-              nc = 50,
-              standardize = TRUE)
-
-ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
-  geom_contour_fill(aes(z = kde)) +
-  #scale_fill_gradient(low = "yellow", high = "red") +
-  scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
-```
-
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
-
-Or you can just plot the density directly from the
-`SpatialPointsDataFrame` using `stat_density2d()`.
-
-Plotting on top of bathymetry
-map
+Function to make plot showing correlation coefficient by colour, while
+non-significant values will be in a white box.
 
 ``` r
-autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
-  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
-  ylab("Latitude") +
-  xlab("Longitude") +
-  labs(fill = "Depth") +
-  stat_density2d(data = as.data.frame(All),
-                 aes(x = LON, y = LAT, alpha = ..level..), 
-                 geom = "polygon", 
-                 fill = "red") +
-  scale_alpha(range=c(0.2,0.9),guide=FALSE)
+corrplot2 <- function(data,
+                      method = "pearson",
+                      sig.level = 0.05,
+                      order = "original",
+                      diag = FALSE,
+                      type = "upper",
+                      tl.srt = 90,
+                      number.font = 1,
+                      number.cex = 1,
+                      mar = c(0, 0, 0, 0)) {
+  library(corrplot)
+  data_incomplete <- data
+  data <- data[complete.cases(data), ]
+  mat <- cor(data, method = method)
+  cor.mtest <- function(mat, method) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        tmp <- cor.test(mat[, i], mat[, j], method = method)
+        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      }
+    }
+    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+    p.mat
+  }
+  p.mat <- cor.mtest(data, method = method)
+  col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+  corrplot(mat,
+    method = "color", col = col(200), number.font = number.font,
+    mar = mar, number.cex = number.cex,
+    type = type, order = order,
+    addCoef.col = "black", # add correlation coefficient
+    tl.col = "black", tl.srt = tl.srt, # rotation of text labels
+    # combine with significance level
+    p.mat = p.mat, sig.level = sig.level, insig = "blank",
+    # hide correlation coefficients on the diagonal
+    diag = diag
+  )
+}
 ```
 
-![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-45-1.png)<!-- -->
+``` r
+dat <- background %>% data.frame() %>% 
+  mutate(across(cols1, round, 1)) %>% 
+  mutate(across(cols3, round, 3)) %>% 
+  mutate(across(cols4, round, 4)) %>% 
+  select(depth,
+         colonydist,
+         shelfdist,
+         slope,
+         SST,
+         Height,
+         NorthVelocity,
+         EastVelocity,
+         chlorA)
+
+library(corrplot)
+corrplot2(
+  data = dat,
+  method = "pearson",
+  sig.level = 0.05,
+  order = "original",
+  diag = FALSE,
+  type = "upper",
+  tl.srt = 75
+)
+```
+
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
+
+I find this correlation plot hard to interpret. I might get rid of it.
+All are significant according to the correlation test, but coefficients
+vary.
+
+``` r
+library(correlation)
+
+correlation::correlation(dat,
+  include_factors = TRUE, method = "auto"
+)
+```
+
+    ## # Correlation table (auto-method)
+    ## 
+    ## Parameter1    |    Parameter2 |     r |         95% CI |       t |    df |         p
+    ## ------------------------------------------------------------------------------------
+    ## depth         |    colonydist | -0.68 | [-0.68, -0.67] | -270.39 | 86732 | < .001***
+    ## depth         |     shelfdist | -0.80 | [-0.80, -0.79] | -387.30 | 86732 | < .001***
+    ## depth         |         slope |  0.54 | [ 0.53,  0.54] |  186.20 | 86254 | < .001***
+    ## depth         |           SST | -0.23 | [-0.24, -0.22] |  -69.52 | 86429 | < .001***
+    ## depth         |        Height |  0.21 | [ 0.20,  0.21] |   62.40 | 86429 | < .001***
+    ## depth         | NorthVelocity |  0.35 | [ 0.34,  0.35] |  109.40 | 86429 | < .001***
+    ## depth         |  EastVelocity | -0.35 | [-0.36, -0.34] | -109.68 | 86429 | < .001***
+    ## depth         |        chlorA |  0.41 | [ 0.41,  0.42] |  133.47 | 86732 | < .001***
+    ## colonydist    |     shelfdist |  0.78 | [ 0.78,  0.78] |  370.01 | 86732 | < .001***
+    ## colonydist    |         slope | -0.31 | [-0.31, -0.30] |  -95.31 | 86254 | < .001***
+    ## colonydist    |           SST |  0.26 | [ 0.25,  0.26] |   78.49 | 86429 | < .001***
+    ## colonydist    |        Height | -0.10 | [-0.11, -0.09] |  -29.40 | 86429 | < .001***
+    ## colonydist    | NorthVelocity | -0.36 | [-0.37, -0.35] | -113.32 | 86429 | < .001***
+    ## colonydist    |  EastVelocity |  0.18 | [ 0.17,  0.18] |   52.50 | 86429 | < .001***
+    ## colonydist    |        chlorA | -0.22 | [-0.22, -0.21] |  -65.92 | 86732 | < .001***
+    ## shelfdist     |         slope | -0.28 | [-0.29, -0.28] |  -86.15 | 86254 | < .001***
+    ## shelfdist     |           SST |  0.13 | [ 0.12,  0.13] |   37.18 | 86429 | < .001***
+    ## shelfdist     |        Height | -0.44 | [-0.45, -0.44] | -145.01 | 86429 | < .001***
+    ## shelfdist     | NorthVelocity | -0.35 | [-0.36, -0.35] | -111.17 | 86429 | < .001***
+    ## shelfdist     |  EastVelocity |  0.29 | [ 0.28,  0.29] |   87.76 | 86429 | < .001***
+    ## shelfdist     |        chlorA | -0.18 | [-0.18, -0.17] |  -53.19 | 86732 | < .001***
+    ## slope         |           SST | -0.09 | [-0.09, -0.08] |  -25.11 | 85962 | < .001***
+    ## slope         |        Height | -0.03 | [-0.04, -0.03] |   -9.53 | 85962 | < .001***
+    ## slope         | NorthVelocity |  0.19 | [ 0.18,  0.19] |   56.21 | 85962 | < .001***
+    ## slope         |  EastVelocity | -0.06 | [-0.07, -0.06] |  -18.48 | 85962 | < .001***
+    ## slope         |        chlorA |  0.18 | [ 0.18,  0.19] |   55.23 | 86254 | < .001***
+    ## SST           |        Height |  0.68 | [ 0.68,  0.69] |  275.57 | 86429 | < .001***
+    ## SST           | NorthVelocity | -0.56 | [-0.57, -0.56] | -199.29 | 86429 | < .001***
+    ## SST           |  EastVelocity |  0.51 | [ 0.51,  0.52] |  174.87 | 86429 | < .001***
+    ## SST           |        chlorA | -0.62 | [-0.63, -0.62] | -234.99 | 86429 | < .001***
+    ## Height        | NorthVelocity | -0.20 | [-0.20, -0.19] |  -59.22 | 86429 | < .001***
+    ## Height        |  EastVelocity |  0.12 | [ 0.11,  0.12] |   34.56 | 86429 | < .001***
+    ## Height        |        chlorA | -0.53 | [-0.53, -0.52] | -183.00 | 86429 | < .001***
+    ## NorthVelocity |  EastVelocity | -0.36 | [-0.36, -0.35] | -112.99 | 86429 | < .001***
+    ## NorthVelocity |        chlorA |  0.29 | [ 0.29,  0.30] |   90.26 | 86429 | < .001***
+    ## EastVelocity  |        chlorA | -0.43 | [-0.44, -0.42] | -140.19 | 86429 | < .001***
+    ## 
+    ## p-value adjustment method: Holm (1979)
+    ## Observations: 85964-86734
+
+While all are significantly correlated with one another, the varibles
+with correlation coefficient \>|0.7| (or close to that value) are:
+
+1.  Depth and distance to the colony (-0.68)
+2.  Depth and distance to the shelf break (-0.8)
+3.  Distance to the shelf break and distance to the colony (0.78)
+4.  SST and sea surface height (0.68)

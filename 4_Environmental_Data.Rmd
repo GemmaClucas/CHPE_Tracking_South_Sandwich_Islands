@@ -161,6 +161,38 @@ All$depth <- raster::extract(bathy_mask, All)
 background$depth <- raster::extract(bathy_mask, background)
 ```
 
+## Messing around with KDEs and density plots
+This should go in a separate script really and is not finished. I just wanted to be able to view the density of fixes when thinking about environmental variables.
+
+Can use this to formally calculate a KDE and plot
+```{r}
+library(spatialEco)
+kde <- sp.kde(All, bw = 0.01, 
+              nr = 50,
+              nc = 50,
+              standardize = TRUE)
+
+ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
+  geom_contour_fill(aes(z = kde)) +
+  #scale_fill_gradient(low = "yellow", high = "red") +
+  scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
+```
+
+Or you can just plot the density directly from the ```SpatialPointsDataFrame``` using ```stat_density2d()```.
+
+Plotting on top of bathymetry map
+```{r}
+autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth") +
+  stat_density2d(data = as.data.frame(All),
+                 aes(x = LON, y = LAT, alpha = ..level..), 
+                 geom = "polygon", 
+                 fill = "red") +
+  scale_alpha(range=c(0.2,0.9),guide=FALSE)
+```
 
 ## Distance from the colony
 
@@ -305,6 +337,7 @@ background$slope <- raster::extract(slope4, background)
 I have downloaded the GLOBAL-ANALYSIS-FORECAST-PHY-001-024-MONTHLY dataset for January and February 2020 (monthly averages) from https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_ANALYSIS_FORECAST_PHY_001_024
 
 I have selected seven variables (but I probably don't need them all) and subsetted the area from -60 to -55 lat, and -29 to -24 lon. The variables in the dataset are:
+
 1. mlotst - Density ocean mixed layer thickness
 2. vo - Northward sea water velocity
 3. thetao - Sea water potential temperature
@@ -700,37 +733,98 @@ background %>% data.frame() %>%
 ```
 
 
+## Are any of these variables correlated with one another?
 
-## Messing around with KDEs and density plots
-This should go in a separate script really and is not finished. I just wanted to be able to view the density of fixes when thinking about environmental variables.
+Taking this from (here)[https://statsandr.com/blog/correlation-coefficient-and-correlation-test-in-r/].
 
-Can use this to formally calculate a KDE and plot
+Function to make plot showing correlation coefficient by colour, while non-significant values will be in a white box.
 ```{r}
-library(spatialEco)
-kde <- sp.kde(All, bw = 0.01, 
-              nr = 50,
-              nc = 50,
-              standardize = TRUE)
-
-ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
-  geom_contour_fill(aes(z = kde)) +
-  #scale_fill_gradient(low = "yellow", high = "red") +
-  scale_alpha(range = c(0.00, 0.5), guide = FALSE) 
+corrplot2 <- function(data,
+                      method = "pearson",
+                      sig.level = 0.05,
+                      order = "original",
+                      diag = FALSE,
+                      type = "upper",
+                      tl.srt = 90,
+                      number.font = 1,
+                      number.cex = 1,
+                      mar = c(0, 0, 0, 0)) {
+  library(corrplot)
+  data_incomplete <- data
+  data <- data[complete.cases(data), ]
+  mat <- cor(data, method = method)
+  cor.mtest <- function(mat, method) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        tmp <- cor.test(mat[, i], mat[, j], method = method)
+        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      }
+    }
+    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+    p.mat
+  }
+  p.mat <- cor.mtest(data, method = method)
+  col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+  corrplot(mat,
+    method = "color", col = col(200), number.font = number.font,
+    mar = mar, number.cex = number.cex,
+    type = type, order = order,
+    addCoef.col = "black", # add correlation coefficient
+    tl.col = "black", tl.srt = tl.srt, # rotation of text labels
+    # combine with significance level
+    p.mat = p.mat, sig.level = sig.level, insig = "blank",
+    # hide correlation coefficients on the diagonal
+    diag = diag
+  )
+}
 ```
 
-Or you can just plot the density directly from the ```SpatialPointsDataFrame``` using ```stat_density2d()```.
 
-Plotting on top of bathymetry map
 ```{r}
-autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
-  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
-  ylab("Latitude") +
-  xlab("Longitude") +
-  labs(fill = "Depth") +
-  stat_density2d(data = as.data.frame(All),
-                 aes(x = LON, y = LAT, alpha = ..level..), 
-                 geom = "polygon", 
-                 fill = "red") +
-  scale_alpha(range=c(0.2,0.9),guide=FALSE)
+dat <- background %>% data.frame() %>% 
+  mutate(across(cols1, round, 1)) %>% 
+  mutate(across(cols3, round, 3)) %>% 
+  mutate(across(cols4, round, 4)) %>% 
+  select(depth,
+         colonydist,
+         shelfdist,
+         slope,
+         SST,
+         Height,
+         NorthVelocity,
+         EastVelocity,
+         chlorA)
+
+library(corrplot)
+corrplot2(
+  data = dat,
+  method = "pearson",
+  sig.level = 0.05,
+  order = "original",
+  diag = FALSE,
+  type = "upper",
+  tl.srt = 75
+)
 ```
 
+I find this correlation plot hard to interpret. I might get rid of it. All are significant according to the correlation test, but coefficients vary.
+
+
+```{r}
+library(correlation)
+
+correlation::correlation(dat,
+  include_factors = TRUE, method = "auto"
+)
+```
+
+While all are significantly correlated with one another, the varibles with correlation coefficient  >|0.7| (or close to that value) are:
+
+1. Depth and distance to the colony (-0.68)
+2. Depth and distance to the shelf break (-0.8)
+3. Distance to the shelf break and distance to the colony (0.78)
+4. SST and sea surface height (0.68)
