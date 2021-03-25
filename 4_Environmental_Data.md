@@ -845,7 +845,8 @@ nc_close(nc_biodata)
 ## Save
 
 Convert the SpatialPointsDataFrames to regular dataframes, do some
-rounding of the numbers, and write-out.
+rounding of the numbers, and add a column that denotes whether it is a
+presence (1) or background (0) data point. Combine dataframes and save.
 
 ``` r
 # Columns to round to 1 decimal places
@@ -855,7 +856,7 @@ cols3 <- c("slope", "NorthVelocity", "EastVelocity")
 # Columns to round to 4 decimal places
 cols4 <- c("SST", "Height", "chlorA")
 
-All %>% data.frame() %>% 
+All <- All %>% data.frame() %>% 
   mutate(across(cols1, round, 1)) %>% 
   mutate(across(cols3, round, 3)) %>% 
   mutate(across(cols4, round, 4)) %>% 
@@ -874,10 +875,10 @@ All %>% data.frame() %>%
          NorthVelocity,
          EastVelocity,
          chlorA) %>% 
-  write.csv(file = "SampledLocationsWithEnvironmentalViariables.csv",quote = FALSE, row.names = FALSE)
+  mutate(pres = 1)
 
 # Repeat for the background points
-background %>% data.frame() %>% 
+background <- background %>% data.frame() %>% 
   rename(LON = Lon, LAT = Lat, Ptt = bird) %>% 
   mutate(across(cols1, round, 1)) %>% 
   mutate(across(cols3, round, 3)) %>% 
@@ -894,7 +895,11 @@ background %>% data.frame() %>%
          NorthVelocity,
          EastVelocity,
          chlorA) %>% 
-  write.csv(file = "BackgroundLocationsWithEnvironmentalViariables.csv",quote = FALSE, row.names = FALSE)
+  mutate(pres = 0)
+
+
+bind_rows(All, background) %>% 
+  write.csv(., file = "PresBackgroundLocationsWithEnvironmentalVariables.csv", row.names = FALSE, quote = FALSE)
 ```
 
 ## Are any of these variables correlated with one another?
@@ -903,10 +908,9 @@ Taking this from
 [here](https://statsandr.com/blog/correlation-coefficient-and-correlation-test-in-r/).
 
 ``` r
-dat <- background %>% data.frame() %>% 
-  mutate(across(cols1, round, 1)) %>% 
-  mutate(across(cols3, round, 3)) %>% 
-  mutate(across(cols4, round, 4)) %>% 
+library(correlation)
+
+background %>% 
   select(depth,
          colonydist,
          shelfdist,
@@ -915,11 +919,8 @@ dat <- background %>% data.frame() %>%
          Height,
          NorthVelocity,
          EastVelocity,
-         chlorA)
-
-library(correlation)
-
-correlation::correlation(dat,
+         chlorA) %>% 
+  correlation::correlation(.,
   include_factors = TRUE, method = "auto"
 )
 ```
@@ -967,6 +968,22 @@ correlation::correlation(dat,
     ## 
     ## p-value adjustment method: Holm (1979)
     ## Observations: 85964-86734
+
+``` r
+background %>% 
+  select(depth,
+         colonydist,
+         shelfdist,
+         slope,
+         SST,
+         Height,
+         NorthVelocity,
+         EastVelocity,
+         chlorA) %>% 
+  pairs(cex = 0.1)
+```
+
+![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
 
 While all are significantly correlated with one another, the varibles
 with correlation coefficient \>|0.7| (or close to that value) are:
