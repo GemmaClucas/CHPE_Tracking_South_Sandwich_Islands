@@ -1,0 +1,78 @@
+---
+title: "5_GAMs"
+author: "Gemma Clucas"
+date: "3/24/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(mgcv)
+library(pROC)
+```
+
+Read in my data
+```{r}
+data <- read.csv(file = "PresBackgroundLocationsWithEnvironmentalVariables.csv", stringsAsFactors = FALSE)
+
+birds <- unique(data$Ptt)
+
+names(data)
+
+#j <- "196697"
+```
+
+
+
+```{r}
+var <- "colonydist"
+k <- c(3,4,5)
+
+for (i in k) {
+  for (j in birds){
+    TRAIN <- data[data$Ptt!=j,]  # use all groups except 1 in training data
+    TEST<- data[data$Ptt==j,]  # keep the other group for testing data
+    # run gam with one variable, k = 3 is number of knots
+    GAM <- gam(pres ~ s(colonydist, k = i), data=TRAIN, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')  
+    TEST$GAM_pred <- as.numeric(predict(GAM, type="response", newdata=TEST)) # predict into the test data frame
+    roc1 <- roc(TEST$pres, TEST$GAM_pred) # create a roc curve from the test data
+    AUCEVAL <- as.numeric(roc1[9]) # get the auc value
+    co1 <- pROC::coords(roc1, x = "best", ret=c("specificity","sensitivity")) #also get specificity and sensitivity
+    # sometimes there is more than one "best" value
+    # if just one, take those values
+    if(dim(co1)[1] == 1){
+      spec1 <- as.numeric(co1[1])
+      sen1 <- as.numeric(co1[2])
+      # if not, take the first value for each - THIS IS OBVIOUSLY NOT IDEAL, BUT RUNS FOR NOW
+    } else {
+      spec1 <- as.numeric(co1[1,1])
+      sen1 <- as.numeric(co1[2,1])
+    }
+    eva <- as.data.frame(rbind(AUCEVAL,spec1,sen1))
+    names(eva) <- j
+    eva
+    if(exists("allevals")){
+      allevals <- cbind(allevals, eva)
+    }else {
+      allevals <- eva
+    }
+  }
+  # calculate mean AUC, sensitiviy, and specificity
+  allevals$mean <- rowMeans(allevals)
+  # save as a csv
+  write.csv(allevals, file = paste(var, "_k", i, ".csv", sep = "" ))
+  # save just the mean, with the variable names to an object
+  assign(paste(var, i, sep = "_k"), 
+       as_tibble(cbind(group = names(allevals), t(allevals))) %>%
+         filter(group == "mean") %>% 
+         select(-group) %>% 
+         mutate(var = var, k = i) )
+  rm(allevals)
+}
+```
+
+Calculate the mean AUC, sensitivity, and specificity and save to a new object.
+```{r}
+
+```
+
