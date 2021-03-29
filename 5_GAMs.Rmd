@@ -42,16 +42,6 @@ for (i in k) {
     roc1 <- roc(TEST$pres, TEST$GAM_pred) # create a roc curve from the test data
     AUCEVAL <- as.numeric(roc1[9]) # get the auc value
     co1 <- pROC::coords(roc1, x = "best", best.method = "closest.topleft", ret=c("specificity","sensitivity")) #also get specificity and sensitivity
-    # sometimes there is more than one "best" value
-    # if just one, take those values
-    # if(dim(co1)[1] == 1){
-    #   spec1 <- as.numeric(co1[1])
-    #   sen1 <- as.numeric(co1[2])
-    #   # if not, take the first value for each - THIS IS OBVIOUSLY NOT IDEAL, BUT RUNS FOR NOW
-    # } else {
-    #   spec1 <- as.numeric(co1[1,1])
-    #   sen1 <- as.numeric(co1[2,1])
-    # }
     spec1 <- as.numeric(co1[1])
     sen1 <- as.numeric(co1[2])
     eva <- as.data.frame(rbind(AUCEVAL,spec1,sen1))
