@@ -9,6 +9,7 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 library(mgcv)
 library(pROC)
+library(tidyverse)
 ```
 
 Read in my data
@@ -19,35 +20,40 @@ birds <- unique(data$Ptt)
 
 names(data)
 
-#j <- "196697"
+#birds <- "196698"
 ```
 
 
+Run the GAMs varying the number of knots from 3 to 5. This holds out the real and background data for each Ptt in turn, and then calculates the mean AUC, sensitivity, and specificty from all 20 runs.
 
+I can't seem to get the formula for the GAM to take anything but the actual variable name, so I am not able to run through each variable automatically at the moment.
 ```{r}
 var <- "colonydist"
 k <- c(3,4,5)
+# k <- c(3)
 
 for (i in k) {
   for (j in birds){
     TRAIN <- data[data$Ptt!=j,]  # use all groups except 1 in training data
     TEST<- data[data$Ptt==j,]  # keep the other group for testing data
-    # run gam with one variable, k = 3 is number of knots
+    # run gam with one variable, k is number of knots
     GAM <- gam(pres ~ s(colonydist, k = i), data=TRAIN, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')  
     TEST$GAM_pred <- as.numeric(predict(GAM, type="response", newdata=TEST)) # predict into the test data frame
     roc1 <- roc(TEST$pres, TEST$GAM_pred) # create a roc curve from the test data
     AUCEVAL <- as.numeric(roc1[9]) # get the auc value
-    co1 <- pROC::coords(roc1, x = "best", ret=c("specificity","sensitivity")) #also get specificity and sensitivity
+    co1 <- pROC::coords(roc1, x = "best", best.method = "closest.topleft", ret=c("specificity","sensitivity")) #also get specificity and sensitivity
     # sometimes there is more than one "best" value
     # if just one, take those values
-    if(dim(co1)[1] == 1){
-      spec1 <- as.numeric(co1[1])
-      sen1 <- as.numeric(co1[2])
-      # if not, take the first value for each - THIS IS OBVIOUSLY NOT IDEAL, BUT RUNS FOR NOW
-    } else {
-      spec1 <- as.numeric(co1[1,1])
-      sen1 <- as.numeric(co1[2,1])
-    }
+    # if(dim(co1)[1] == 1){
+    #   spec1 <- as.numeric(co1[1])
+    #   sen1 <- as.numeric(co1[2])
+    #   # if not, take the first value for each - THIS IS OBVIOUSLY NOT IDEAL, BUT RUNS FOR NOW
+    # } else {
+    #   spec1 <- as.numeric(co1[1,1])
+    #   sen1 <- as.numeric(co1[2,1])
+    # }
+    spec1 <- as.numeric(co1[1])
+    sen1 <- as.numeric(co1[2])
     eva <- as.data.frame(rbind(AUCEVAL,spec1,sen1))
     names(eva) <- j
     eva
@@ -60,7 +66,7 @@ for (i in k) {
   # calculate mean AUC, sensitiviy, and specificity
   allevals$mean <- rowMeans(allevals)
   # save as a csv
-  write.csv(allevals, file = paste(var, "_k", i, ".csv", sep = "" ))
+  write.csv(allevals, file = paste("GAMs/", var, "_k", i, ".csv", sep = "" ))
   # save just the mean, with the variable names to an object
   assign(paste(var, i, sep = "_k"), 
        as_tibble(cbind(group = names(allevals), t(allevals))) %>%
@@ -71,8 +77,23 @@ for (i in k) {
 }
 ```
 
-Calculate the mean AUC, sensitivity, and specificity and save to a new object.
+Combine the outputs from all the different GAMs with just one covariate, to find the one with the best AUC. 
 ```{r}
-
+  
+dplyr::bind_rows(colonydist_k3, colonydist_k4, colonydist_k5) %>% 
+                 # depth_k3, depth_k4, depth_k5,
+                 # shelfdist_k3, shelfdist_k4, shelfdist_k5,
+                 # slope_k3, slope_k4, slope_k5,
+                 # SST_k3, SST_k4, SST_k5,
+                 # Height_k3, Height_k4, Height_k5,
+                 # chlorA_k3, chlorA_k4, chlorA_k5,
+                 # NorthVelocity_k3, NorthVelocity_k4, NorthVelocity_k5,
+                 # EastVelocity_k3, EastVelocity_k4, EastVelocity_k5) %>% 
+  select(var, k, AUCEVAL, spec1, sen1) %>% 
+  rename(covariate = var, knots = k,
+         AUC = AUCEVAL, Sensitivity = sen1, Specificity = spec1) %>% 
+  arrange(desc(AUC))
 ```
 
+So colonydist is the best predictor. Run models with colonydist plus the other covariates next.
+Also try using different methods for "best" threshold determination.
