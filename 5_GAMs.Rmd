@@ -28,7 +28,7 @@ Run the GAMs varying the number of knots from 3 to 5. This holds out the real an
 
 I can't seem to get the formula for the GAM to take anything but the actual variable name, so I am not able to run through each variable automatically at the moment.
 ```{r}
-var <- "colonydist"
+var <- "chlorA"
 k <- c(3,4,5)
 # k <- c(3)
 
@@ -37,7 +37,7 @@ for (i in k) {
     TRAIN <- data[data$Ptt!=j,]  # use all groups except 1 in training data
     TEST<- data[data$Ptt==j,]  # keep the other group for testing data
     # run gam with one variable, k is number of knots
-    GAM <- gam(pres ~ s(colonydist, k = i), data=TRAIN, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')  
+    GAM <- gam(pres ~ s(chlorA, k = i), data=TRAIN, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')  
     TEST$GAM_pred <- as.numeric(predict(GAM, type="response", newdata=TEST)) # predict into the test data frame
     roc1 <- roc(TEST$pres, TEST$GAM_pred) # create a roc curve from the test data
     AUCEVAL <- as.numeric(roc1[9]) # get the auc value
@@ -67,18 +67,65 @@ for (i in k) {
 }
 ```
 
+Trying to automate the covariates
+```{r}
+var <- c("depth", "colonydist")
+knots <- c(3,4,5)
+
+
+for (l in var) {
+  for (i in knots) {
+    for (j in birds){
+      TRAIN <- data[data$Ptt!=j,]  # use all groups except 1 in training data
+      TEST<- data[data$Ptt==j,]  # keep the other group for testing data
+      # run gam with one variable, k is number of knots
+      form <- as.formula(paste("pres ~ s(", l, ", k = i)"))
+      GAM <- gam(form, data=TRAIN, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')  
+      TEST$GAM_pred <- as.numeric(predict(GAM, type="response", newdata=TEST)) # predict into the test data frame
+      roc1 <- roc(TEST$pres, TEST$GAM_pred) # create a roc curve from the test data
+      AUCEVAL <- as.numeric(roc1[9]) # get the auc value
+      co1 <- pROC::coords(roc1, x = "best", best.method = "closest.topleft", ret=c("specificity","sensitivity")) #also get specificity and sensitivity
+      spec1 <- as.numeric(co1[1])
+      sen1 <- as.numeric(co1[2])
+      eva <- as.data.frame(rbind(AUCEVAL,spec1,sen1))
+      names(eva) <- j
+      eva
+      if(exists("allevals")){
+        allevals <- cbind(allevals, eva)
+      }else {
+        allevals <- eva
+      }
+    }
+    # calculate mean AUC, sensitiviy, and specificity
+    allevals$mean <- rowMeans(allevals)
+    # save as a csv
+    write.csv(allevals, file = paste("GAMs/", l, "_k", i, ".csv", sep = "" ))
+    # save just the mean, with the variable names to an object
+    assign(paste(l, i, sep = "_k"), 
+           as_tibble(cbind(group = names(allevals), t(allevals))) %>%
+             filter(group == "mean") %>% 
+             select(-group) %>% 
+             mutate(var = l, k = i) )
+    rm(allevals)
+  }
+}
+```
+
+
+
+
 Combine the outputs from all the different GAMs with just one covariate, to find the one with the best AUC. 
 ```{r}
   
-dplyr::bind_rows(colonydist_k3, colonydist_k4, colonydist_k5) %>% 
-                 # depth_k3, depth_k4, depth_k5,
-                 # shelfdist_k3, shelfdist_k4, shelfdist_k5,
-                 # slope_k3, slope_k4, slope_k5,
-                 # SST_k3, SST_k4, SST_k5,
-                 # Height_k3, Height_k4, Height_k5,
-                 # chlorA_k3, chlorA_k4, chlorA_k5,
-                 # NorthVelocity_k3, NorthVelocity_k4, NorthVelocity_k5,
-                 # EastVelocity_k3, EastVelocity_k4, EastVelocity_k5) %>% 
+dplyr::bind_rows(colonydist_k3, colonydist_k4, colonydist_k5,
+                 depth_k3, depth_k4, depth_k5) %>% 
+                # ,
+                #  slope_k3, slope_k4, slope_k5,
+                #  SST_k3, SST_k4, SST_k5,
+                #  Height_k3, Height_k4, Height_k5,
+                #  chlorA_k3, chlorA_k4, chlorA_k5,
+                #  NorthVelocity_k3, NorthVelocity_k4, NorthVelocity_k5,
+                #  EastVelocity_k3, EastVelocity_k4, EastVelocity_k5) %>%
   select(var, k, AUCEVAL, spec1, sen1) %>% 
   rename(covariate = var, knots = k,
          AUC = AUCEVAL, Sensitivity = sen1, Specificity = spec1) %>% 
@@ -87,3 +134,44 @@ dplyr::bind_rows(colonydist_k3, colonydist_k4, colonydist_k5) %>%
 
 So colonydist is the best predictor. Run models with colonydist plus the other covariates next.
 Also try using different methods for "best" threshold determination.
+
+
+```{r}
+var <- "depth"
+k <- c(3,4,5)
+# k <- c(3)
+
+for (i in k) {
+  for (j in birds){
+    TRAIN <- data[data$Ptt!=j,]  # use all groups except 1 in training data
+    TEST<- data[data$Ptt==j,]  # keep the other group for testing data
+    # run gam with one colonydist, knots = 3, and vary the other covariates and number of knots
+    GAM <- gam(pres ~ s(colonydist, k = 3) + s(depth, k = i), data=TRAIN, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')  
+    TEST$GAM_pred <- as.numeric(predict(GAM, type="response", newdata=TEST)) # predict into the test data frame
+    roc2 <- roc(TEST$pres, TEST$GAM_pred) # create a roc curve from the test data
+    AUCEVAL2 <- as.numeric(roc2[9]) # get the auc value
+    co2 <- pROC::coords(roc2, x = "best", best.method = "closest.topleft", ret=c("specificity","sensitivity")) #also get specificity and sensitivity
+    spec2 <- as.numeric(co2[1])
+    sen2 <- as.numeric(co2[2])
+    eva2 <- as.data.frame(rbind(AUCEVAL2,spec2,sen2))
+    names(eva2) <- j
+    eva2
+    if(exists("allevals2")){
+      allevals2 <- cbind(allevals2, eva2)
+    }else {
+      allevals2 <- eva2
+    }
+  }
+  # calculate mean AUC, sensitiviy, and specificity
+  allevals2$mean <- rowMeans(allevals2)
+  # save as a csv
+  write.csv(allevals2, file = paste("GAMs/colonydist+", var, "_k", i, ".csv", sep = "" ))
+  # save just the mean, with the variable names to an object
+  assign(paste("colonydist+", var, "_k", i, sep = ""), 
+       as_tibble(cbind(group = names(allevals2), t(allevals2))) %>%
+         filter(group == "mean") %>% 
+         select(-group) %>% 
+         mutate(var = var, k = i) )
+  rm(allevals2)
+}
+```
