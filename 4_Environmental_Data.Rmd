@@ -774,13 +774,9 @@ background %>%
 ```
 
 
-While all are significantly correlated with one another, the varibles with correlation coefficient  >|0.7| (or close to that value) are:
+While all are significantly correlated with one another, the covariates with correlation coefficient  >|0.7| are:
 
-1. Depth and distance to the colony (-0.68)
-2. Depth and distance to the shelf break (-0.8)
-3. Distance to the shelf break and distance to the colony (0.78)
-4. SST and sea surface height (0.68)
+1. Depth and distance to the shelf break (-0.8)
+2. Distance to the shelf break and distance to the colony (0.78)
 
-So I need to evaluate which one improves model perfermance the most out of depth, distance to the colony, and distance to the shelf break, and just include that one. 
-
-And for SST vs sea surface height, I could do the same, or just use SST.
+So if I drop distance to the shelf break, then I can keep depth and distance to the colony.
