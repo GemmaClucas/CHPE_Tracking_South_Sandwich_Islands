@@ -26,9 +26,13 @@ names(data)
 Run the GAMs varying the covariate and the number of knots from 3 to 5. This holds out the real and background data for each Ptt in turn, and then calculates the mean AUC, sensitivity, and specificty from all 20 runs.
 
 ```{r, message = FALSE, warning = FALSE}
-var <- c("depth", "colonydist", "slope", "SST", "Height", "NorthVelocity", "EastVelocity", "chlorA")
-knots <- c(3,4,5)
+# IRL
+# var <- c("depth", "colonydist", "slope", "SST", "Height", "NorthVelocity", "EastVelocity", "chlorA")
+# knots <- c(3,4,5)
 
+# Quick knit
+var <- c("colonydist")
+knots <- c(3)
 
 for (l in var) {
   for (i in knots) {
@@ -77,31 +81,40 @@ for (l in var) {
 
 Combine the outputs from the GAMs run with just one covariate, to find the one with the best AUC. 
 ```{r}
-  
-dplyr::bind_rows(colonydist_k3, colonydist_k4, colonydist_k5,
-                 depth_k3, depth_k4, depth_k5) %>% 
-                # ,
-                #  slope_k3, slope_k4, slope_k5,
-                #  SST_k3, SST_k4, SST_k5,
-                #  Height_k3, Height_k4, Height_k5,
-                #  chlorA_k3, chlorA_k4, chlorA_k5,
-                #  NorthVelocity_k3, NorthVelocity_k4, NorthVelocity_k5,
-                #  EastVelocity_k3, EastVelocity_k4, EastVelocity_k5) %>%
-  select(var, k, AUCEVAL, spec1, sen1) %>% 
+# IRL
+# dplyr::bind_rows(colonydist_k3, colonydist_k4, colonydist_k5,
+#                  depth_k3, depth_k4, depth_k5,
+#                  slope_k3, slope_k4, slope_k5,
+#                  SST_k3, SST_k4, SST_k5,
+#                  Height_k3, Height_k4, Height_k5,
+#                  chlorA_k3, chlorA_k4, chlorA_k5,
+#                  NorthVelocity_k3, NorthVelocity_k4, NorthVelocity_k5,
+#                  EastVelocity_k3, EastVelocity_k4, EastVelocity_k5) %>%
+#   select(var, k, AUCEVAL, spec1, sen1) %>% 
+#   rename(covariate = var, knots = k,
+#          AUC = AUCEVAL, Sensitivity = sen1, Specificity = spec1) %>% 
+#   arrange(desc(AUC))
+
+# Quick knit
+colonydist_k3 %>% 
   rename(covariate = var, knots = k,
          AUC = AUCEVAL, Sensitivity = sen1, Specificity = spec1) %>% 
   arrange(desc(AUC))
 ```
 
-So colonydist is the best predictor. Run models with colonydist plus the other covariates next.
+So ```colonydist``` is the best predictor. Run models with ```colonydist``` plus the other covariates next.
 
-```{r}
-var <- c("depth", "slope", "SST", "Height", "NorthVelocity", "EastVelocity", "chlorA")
-k <- c(3,4,5)
-# k <- c(3)
+```{r, warning = FALSE, message = FALSE}
+# IRL
+# var <- c("depth", "slope", "SST", "Height", "NorthVelocity", "EastVelocity", "chlorA")
+# knots <- c(3,4,5)
+
+# Quick knit
+var <- c("depth")
+k <- c(3)
 
 for (l in var) {
-  for (i in k) {
+  for (i in knots) {
     for (j in birds){
       TRAIN <- data[data$Ptt!=j,]  # use all groups except 1 in training data
       TEST<- data[data$Ptt==j,]  # keep the other group for testing data
@@ -129,7 +142,7 @@ for (l in var) {
     # save as a csv
     write.csv(allevals2, file = paste("GAMs/colonydist_k3+", l, "_k", i, ".csv", sep = "" ))
     # save just the mean, with the variable names to an object
-    assign(paste("colonydist_k3+", l, "_k", i, sep = ""), 
+    assign(paste("colonydist_k3_", l, "_k", i, sep = ""), 
            as_tibble(cbind(group = names(allevals2), t(allevals2))) %>%
              filter(group == "mean") %>% 
              select(-group) %>% 
@@ -138,3 +151,94 @@ for (l in var) {
   }
 }
 ```
+
+
+Combine the outputs and sort by AUC from highest to lowest.
+```{r}
+# IRL
+# dplyr::bind_rows(colonydist_k3_chlorA_k3, colonydist_k3_chlorA_k4, colonydist_k3_chlorA_k5,
+#                  colonydist_k3_depth_k3, colonydist_k3_depth_k4, colonydist_k3_depth_k5,
+#                  colonydist_k3_slope_k3, colonydist_k3_slope_k4, colonydist_k3_slope_k5,
+#                  colonydist_k3_SST_k3, colonydist_k3_SST_k4, colonydist_k3_SST_k5,
+#                  colonydist_k3_Height_k3, colonydist_k3_Height_k4, colonydist_k3_Height_k5,
+#                  colonydist_k3_NorthVelocity_k3, colonydist_k3_NorthVelocity_k4, colonydist_k3_NorthVelocity_k5,
+#                  colonydist_k3_EastVelocity_k3, colonydist_k3_EastVelocity_k4, colonydist_k3_EastVelocity_k5) %>%
+#   select(var, k, AUCEVAL2, spec2, sen2) %>% 
+#   rename(covariate = var, knots = k,
+#          AUC = AUCEVAL2, Sensitivity = sen2, Specificity = spec2) %>% 
+#   arrange(desc(AUC))
+
+# Quick knit
+colonydist_k3_depth_k3 %>%
+  select(var, k, AUCEVAL2, spec2, sen2) %>% 
+  rename(covariate = var, knots = k,
+         AUC = AUCEVAL2, Sensitivity = sen2, Specificity = spec2) %>% 
+  arrange(desc(AUC))
+```
+
+So colony distance with 3 knots and SST with 5 knots gives the highest AUC, but chlorophyl A is very close.
+
+Repeat again to add a third variable.
+
+```{r, warning = FALSE, message = FALSE}
+# IRL
+var <- c("depth", "slope", "Height", "NorthVelocity", "EastVelocity", "chlorA")
+knots <- c(3,4,5)
+
+# # Quick knit
+# var <- c("depth")
+# k <- c(3)
+
+for (l in var) {
+  for (i in knots) {
+    for (j in birds){
+      TRAIN <- data[data$Ptt!=j,]  # use all groups except 1 in training data
+      TEST<- data[data$Ptt==j,]  # keep the other group for testing data
+      # run gam with colonydist, knots = 3, and vary the other covariates and number of knots
+      # have to define the formula first as a string
+      form <- as.formula(paste("pres ~ s(colonydist, k = 3) + s(SST, k = 5) + s(", l, ", k = i)"))
+      GAM <- gam(form, data=TRAIN, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')  
+      TEST$GAM_pred <- as.numeric(predict(GAM, type="response", newdata=TEST)) # predict into the test data frame
+      roc3 <- roc(TEST$pres, TEST$GAM_pred) # create a roc curve from the test data
+      AUCEVAL3 <- as.numeric(roc3[9]) # get the auc value
+      co3 <- pROC::coords(roc3, x = "best", best.method = "closest.topleft", ret=c("specificity","sensitivity")) #also get specificity and sensitivity
+      spec3 <- as.numeric(co3[1])
+      sen3 <- as.numeric(co3[2])
+      eva3 <- as.data.frame(rbind(AUCEVAL3,spec3,sen3))
+      names(eva3) <- j
+      eva3
+      if(exists("allevals3")){
+        allevals3 <- cbind(allevals3, eva3)
+      }else {
+        allevals3 <- eva3
+      }
+    }
+    # calculate mean AUC, sensitiviy, and specificity
+    allevals3$mean <- rowMeans(allevals3)
+    # save as a csv
+    write.csv(allevals3, file = paste("GAMs/colonydist_k3+SST_k5+", l, "_k", i, ".csv", sep = "" ))
+    # save just the mean, with the variable names to an object
+    assign(paste("colonydist_k3_SST_k5_", l, "_k", i, sep = ""), 
+           as_tibble(cbind(group = names(allevals3), t(allevals3))) %>%
+             filter(group == "mean") %>% 
+             select(-group) %>% 
+             mutate(var = l, k = i) )
+    rm(allevals3)
+  }
+}
+```
+
+Combine outputs
+```{r}
+dplyr::bind_rows(colonydist_k3_SST_k5_chlorA_k3, colonydist_k3_SST_k5_chlorA_k4, colonydist_k3_SST_k5_chlorA_k5,
+                 colonydist_k3_SST_k5_depth_k3, colonydist_k3_SST_k5_depth_k4, colonydist_k3_SST_k5_depth_k5,
+                 colonydist_k3_SST_k5_slope_k3, colonydist_k3_SST_k5_slope_k4, colonydist_k3_SST_k5_slope_k5,
+                 colonydist_k3_SST_k5_Height_k3, colonydist_k3_SST_k5_Height_k4, colonydist_k3_SST_k5_Height_k5,
+                 colonydist_k3_SST_k5_NorthVelocity_k3, colonydist_k3_SST_k5_NorthVelocity_k4, colonydist_k3_SST_k5_NorthVelocity_k5,
+                 colonydist_k3_SST_k5_EastVelocity_k3, colonydist_k3_SST_k5_EastVelocity_k4, colonydist_k3_SST_k5_EastVelocity_k5) %>%
+  select(var, k, AUCEVAL3, spec3, sen3) %>%
+  rename(covariate = var, knots = k,
+         AUC = AUCEVAL3, Sensitivity = sen3, Specificity = spec3) %>%
+  arrange(desc(AUC))
+```
+
