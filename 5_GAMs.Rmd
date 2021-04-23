@@ -24,6 +24,7 @@ names(data)
 
 ```
 
+## Model selection using cross-validation
 
 Run the GAMs varying the covariate and the number of knots from 3 to 6. This holds out the real and background data for each Ptt in turn, and then calculates the mean AUC, sensitivity, and specificty from all 20 runs.
 
@@ -335,5 +336,136 @@ gratia::draw(BAM, residuals = TRUE)
 It seems like both methods end up overfitting the data, as they both conclude that all covariates are important with lots of wiggles, which is just biologically very unrealistic. This is probably due to autocorrelation in the data, so the forward model selection with cross-validation is the better way to do things.
 
 
+## Make predictions from the model
+
+Re-run the final model.
+```{r}
+GAM <- gam(pres ~ s(colonydist, k = 3) + s(SST, k = 6), data=data, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')
+
+```
+
+Load packages.
+```{r}
+library(raster)
+library(rgdal)
+library(ncdf4)
+```
+
+### 1. Predict around Saunders to check that the distribution looks ok
+
+Make a new raster with a 1km x 1km resolution. This is what we will use to sample the distance and SST rasters. I got the values for the max and min long/lat by converting the depth raster to LAEA after cropping it to the study area extent.
+```{r}
+long <- seq(-120531.7, 84896.27, 1000) #first minimum longitude in m, then max, 1000 is 1km
+head(long)
+lat <- seq(-50280.75, 81319.25, 1000)
+head(lat)
+
+Saunders_1KmPoints <- expand.grid(long,lat)
+names(Saunders_1KmPoints) <- c("Lon","Lat")
+coordinates(Saunders_1KmPoints) <- ~Lon+Lat
+
+# reproject it back to wgs84 to extract the environmentla data
+proj4string(Saunders_1KmPoints) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+Saunders_1KmPoints <- spTransform(Saunders_1KmPoints, CRS = CRS("+proj=longlat +ellps=WGS84"))
+
+plot(Saunders_1KmPoints)
+```
 
 
+This just creates a raster with all values set to 1 across the study area.
+```{r}
+# Read in bathymetry raster and crop to extent
+SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
+  projectRaster(., crs=crs("+init=epsg:4326")) %>% 
+  crop(., c(-27.96598, -24.623, -58.41806, -57.28708))
+
+# Set all values to 1
+x <- SSI_bath_WGS84
+#values(x) <- 1
+```
+
+
+Crop out land from the study area raster using ```mask()```.
+```{r}
+# Read in shapefile for land
+SSI_WGS84 <- readOGR("Seamask.shp") %>% 
+  crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
+  spTransform(., crs("+init=epsg:4326"))
+
+# Use mask() to cut out land from the raster
+mask<-mask(x, SSI_WGS84, inverse=F)
+
+mask <- projectRaster(mask, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+
+mask <- aggregate(mask, fact = 5)
+
+mask <- projectRaster(mask, crs = crs("+init=epsg:4326"))
+
+# Plot to check
+plot(mask)
+```
+
+
+
+
+
+
+Make a raster for the distance from colony.
+```{r}
+colony_lat<- -57.808 
+colony_lon<- -26.404
+
+# Find the colony cell in the study area raster
+j <- cellFromXY(mask, cbind(colony_lon, colony_lat))
+# Change the value of the cell where the colony is to 2 (all the other cells are 1)
+mask[j]<-2 
+
+# Check it worked
+# table(values(mask)) 
+
+# Create a distance raster from the colony
+# Moving through land is prevented by omiting cells with NA values
+dist <- gridDistance(mask, origin=2, omit=NA)
+plot(dist)
+plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7))
+```
+
+
+Get the sea surface temperature data that I downloaded previously.
+```{r}
+# Open data - note there is a dataset for Jan and one for Feb
+nc_data_Jan <- nc_open('global-analysis-forecast-phy-001-024-monthly_January2020.nc')
+nc_data_Feb <- nc_open('global-analysis-forecast-phy-001-024-monthly_February2020.nc')
+# Extract longs and lats
+nc_lon <- ncvar_get(nc_data_Jan, "longitude")
+nc_lat <- ncvar_get(nc_data_Jan, "latitude", verbose = F)
+# Create an array of the SST data
+temp.array.Jan <- ncvar_get(nc_data_Jan, "thetao")
+temp.array.Feb <- ncvar_get(nc_data_Feb, "thetao")
+# Take just the surface layer
+surface.temp.Jan <- temp.array.Jan[, , 1] 
+surface.temp.Feb <- temp.array.Feb[, , 1] 
+# Make it into a raster
+SST_Jan <- raster(t(surface.temp.Jan), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+# Same for Feb
+SST_Feb <- raster(t(surface.temp.Feb), 
+                   xmn=min(nc_lon), 
+                   xmx=max(nc_lon), 
+                   ymn=min(nc_lat), 
+                   ymx=max(nc_lat), 
+                   crs=crs("+init=epsg:4326")) %>% 
+  flip(., direction = "y")
+# Calculate weighted mean (weighting by the number of observations in January vs February)
+wMeanSST <- stack(c(SST_Jan, SST_Feb)) %>% 
+  weighted.mean(., w = c(0.64, 0.36))
+# Plot for study area
+plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+````
+
+STILL NEED TO FIGURE OUT HOW TO SAMPLE THESE.
