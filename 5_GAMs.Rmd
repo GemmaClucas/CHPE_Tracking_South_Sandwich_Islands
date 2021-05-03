@@ -12,6 +12,10 @@ library(pROC)
 library(tidyverse)
 library(knitr)
 library(gratia)
+library(viridis)
+library(ggplot2)
+
+select <- dplyr::select
 ```
 
 Read in the data.
@@ -349,47 +353,50 @@ Load packages.
 library(raster)
 library(rgdal)
 library(ncdf4)
+library(viridis)
 ```
 
 ### 1. Predict around Saunders to check that the distribution looks ok
 
-This just creates a raster across the study area.
+This just creates a raster across the study area using the bathymetry data.
 ```{r}
-# Read in bathymetry raster and crop to extent
+# Read in bathymetry raster and crop to extent of the study area
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
   crop(., c(-27.96598, -24.623, -58.41806, -57.28708))
 
-
 x <- SSI_bath_WGS84
-#values(x) <- 1
+
+# Project to LAEA to find extent in metres
+y <- projectRaster(x, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+extent(y)
 ```
 
 
-Crop out land from the study area raster using ```mask()``` and change the resolution to a 1x1km grid.
+Crop out land from the bathymetry raster using ```mask()``` 
 ```{r}
 # Read in shapefile for land
 SSI_WGS84 <- readOGR("Seamask.shp") %>% 
   crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
   spTransform(., crs("+init=epsg:4326"))
 
-# Convert to LAEA
-x <- projectRaster(x, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
-# Downsample
-x <- aggregate(x, fact = 5)
-# Convert back to WGS84
-x <- projectRaster(x, crs = crs("+init=epsg:4326"))
+# # Convert to LAEA
+# x <- projectRaster(x, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+# # Downsample
+# x <- aggregate(x, fact = 5)
+# # Convert back to WGS84
+# x <- projectRaster(x, crs = crs("+init=epsg:4326"))
+
+# I have commented out this section as I don't actually need to downsample this layer, I'll just sample it with my 1km x 1km grid
+
 # Cut out land
 mask <- mask(x, SSI_WGS84, inverse=F)
 
 # Plot to check
-plot(mask)
-plot(mask, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7))
+plot(mask, col=viridis(100))
+plot(mask, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
 ```
 
-Not sure why the edges of the study area are bumpy in the zoomed out map... something to do with projections??
-
-Also note that this is a 1.02km x 1km grid - is that a problem?
 
 
 
@@ -403,18 +410,13 @@ j <- cellFromXY(mask, cbind(colony_lon, colony_lat))
 # Change the value of the cell where the colony is to 2 (all the other cells are 1)
 mask[j]<-2 
 
-# Check it worked
-# table(values(mask)) 
 
 # Create a distance raster from the colony
 # Moving through land is prevented by omiting cells with NA values
 dist <- gridDistance(mask, origin=2, omit=NA)
-plot(dist)
-plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7))
+plot(dist, col=viridis(100))
+plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
 ```
-That seems to be working.
-
-
 
 
 Get the sea surface temperature data that I downloaded previously.
@@ -451,34 +453,87 @@ SST_Feb <- raster(t(surface.temp.Feb),
 wMeanSST <- stack(c(SST_Jan, SST_Feb)) %>% 
   weighted.mean(., w = c(0.64, 0.36))
 # Plot for study area
-plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+raster::plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
+raster::plot(wMeanSST, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
+
 ```
 
 
-Make a new raster with a 1km x 1km resolution. This is what we will use to sample the distance and SST rasters. I got the values for the max and min long/lat by converting the depth raster to LAEA after cropping it to the study area extent.
+Make a new raster with a 1km x 1km resolution. This is what we will use to sample the distance and SST rasters. The values for the max and min long/lat are from the depth raster to LAEA after cropping it to the study area extent (above).
 ```{r}
-long <- seq(-120531.7, 84896.27, 1000) #first minimum longitude in m, then max, 1000 is 1km
-head(long)
-lat <- seq(-50280.75, 81319.25, 1000)
-head(lat)
+long <- seq(-119511.7 , 83876.27, 1000) #first minimum longitude in m, then max, 1000 is 1km
+# head(long)
+lat <- seq(-49280.75, 80319.25, 1000)
+# head(lat)
 Saunders_1KmPoints <- expand.grid(long,lat)
 names(Saunders_1KmPoints) <- c("Lon","Lat")
+# make it spatial
 coordinates(Saunders_1KmPoints) <- ~Lon+Lat
-# reproject it back to wgs84 to extract the environmentla data
 proj4string(Saunders_1KmPoints) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
-Saunders_1KmPoints <- spTransform(Saunders_1KmPoints, CRS = CRS("+proj=longlat +ellps=WGS84"))
-plot(Saunders_1KmPoints)
+
+
+# change it back to wgs84 to extract the environmental data (those layers are WGS84)
+Saunders_1KmPoints <- spTransform(Saunders_1KmPoints, CRS = proj4string(dist))
+#plot(Saunders_1KmPoints)
 
 Saunders_1KmPoints$SST <- raster::extract(wMeanSST, Saunders_1KmPoints)
 Saunders_1KmPoints$colonydist <- raster::extract(dist, Saunders_1KmPoints)
+
+view(as.data.frame(Saunders_1KmPoints))
 ```
 
-Make predictions - NEED TO FIGURE OUT HOW TO PLOT THIS.
+Make predictions.
 ```{r}
 Saunders_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = Saunders_1KmPoints))
+```
 
-# ggplot(data = data.frame(Saunders_1KmPoints), aes(x = Lon, y = Lat)) + 
-#   stat_density2d()
-  
+Make a new raster with the correct resolution and extent of the 1km grid, then use it to convert the grid into a raster for plotting.
+```{r}
+# new raster in LAEA
+r <- raster(ncols = 204, nrows = 130, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
+# define the extent of the raster
+extent(r) <- c(-119511.7 , 83876.27, -49280.75, 80319.25  )
+# change points into LAEA as well
+Saunders_1KmPoints <- spTransform(Saunders_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+# rasterize the predicted values
+r3 <- rasterize(Saunders_1KmPoints, r, 'GAM_pred', fun=mean)
+# project back to WGS84 for plotting
+r3 <- projectRaster(from = r3, to = dist)
+plot(r3, col=viridis(100))
+
+```
+
+This was the easiest way to plot the island with no background.
+```{r}
+bathy_mask <- mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
+dat <- marmap::as.bathy(bathy_mask)
+
+All <- read.csv("Chick-rearing_trips/All_chick-rearing_trips.csv", stringsAsFactors = FALSE)
+
+autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0.1) + 
+  scale_fill_gradient(low = "white", high = "white") +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth") +
+  stat_density2d(data = as.data.frame(All),
+                 aes(x = LON, y = LAT, alpha = ..level..), 
+                 geom = "polygon", 
+                 fill = "red") +
+  scale_alpha(range=c(0.2,0.9),guide=FALSE)
+```
+
+```{r}
+ggplot(data = as.data.frame(All), aes(x = LON, y = LAT)) +
+  geom_density_2d_filled()
+
+# make all raster values the same
+mask2 <- mask > -Inf
+# turn into polygon
+pp <- rasterToPolygons(mask2, dissolve=TRUE)
+plot(pp)
+
+ggplot(data = pp, aes(x=long, y = lat)) +
+  geom_polygon(fill = "white")
+
 ```
 
