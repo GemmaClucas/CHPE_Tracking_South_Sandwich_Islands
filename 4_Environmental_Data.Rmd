@@ -172,6 +172,8 @@ kde <- sp.kde(All, bw = 0.01,
               nc = 50,
               standardize = TRUE)
 
+#kde <- sp.kde(All)
+
 ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
   geom_contour_fill(aes(z = kde)) +
   #scale_fill_gradient(low = "yellow", high = "red") +
@@ -193,6 +195,7 @@ autoplot(dat, geom=c("raster", "contour"), coast = FALSE, colour="white", size=0
                  fill = "red") +
   scale_alpha(range=c(0.2,0.9),guide=FALSE)
 ```
+
 
 ## Distance from the colony
 
