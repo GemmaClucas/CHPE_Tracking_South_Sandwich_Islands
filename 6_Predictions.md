@@ -358,3 +358,123 @@ ggplot() +
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+### 2\. Zavodovski
+
+Make raster for entire chain of islands using the bathymetry raster as a
+starting point.
+
+``` r
+SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
+  projectRaster(., crs=crs("+init=epsg:4326")) %>% 
+  crop(., c(-30, -25, -60, -56))
+
+# Read in shapefile for land
+SSI_WGS84 <- readOGR("Seamask.shp") %>% 
+  crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## with 1 features
+    ## It has 1 fields
+
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
+    ## intersection at or near point 77954.359424359995 26605.230663620001
+
+    ## x[i, ] is invalid
+
+    ## Warning in rgeos::gIntersection(x[i, ], y, byid = TRUE, drop_lower_td = TRUE):
+    ## Invalid objects found; consider using set_RGEOS_CheckValidity(2L)
+
+``` r
+# Cut out land
+mask <- mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
+
+# Plot to check
+plot(mask, col=viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+``` r
+# Set all values to 1
+x <- mask
+values(x) <- 1
+# Cut out land
+x <- mask(x, SSI_WGS84, inverse=F)
+
+# Plot to check
+plot(x, col=viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
+
+Make a raster of the distances from colonies on Zavodovski.
+
+``` r
+Zav1_lat<- -56.291598
+Zav1_lon<- -27.600711
+
+# Find the colony cell in the study area raster
+j <- cellFromXY(x, cbind(Zav1_lon, Zav1_lat))
+# Change the value of the cell where the colony is to 2 (all the other cells are 1)
+x[j]<-2 
+
+
+# Create a distance raster from the colony
+# Moving through land is prevented by omiting cells with NA values
+dist <- gridDistance(x, origin=2, omit=NA)
+plot(dist, col=viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
+Add a second colony on Thule.
+
+``` r
+Thule1_lat <- -59.464498
+Thule1_lon <- -27.307218
+
+# Find the colony cell in the study area raster
+j <- cellFromXY(x, cbind(Thule1_lon, Thule1_lat))
+# Change the value of the cell where the colony is to 2 (all the other cells are 1)
+x[j] <- 2 
+
+
+# Create a distance raster from the colony
+# Moving through land is prevented by omiting cells with NA values
+dist <- gridDistance(x, origin=2, omit=NA)
+plot(dist, col=viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-16-1.png)<!-- --> So I
+can calculate the distance from more than one colony at once.
+
+Read in colony locations on
+    Zavodovski
+
+``` r
+colonies <- read.csv("Colony_LatLons.csv", header = TRUE)
+```
+
+    ## Warning in read.table(file = file, header = header, sep = sep, quote = quote, :
+    ## incomplete final line found by readTableHeader on 'Colony_LatLons.csv'
+
+``` r
+coordinates(colonies) <- ~Long+Lat
+
+j <- cellFromXY(x, colonies)
+x[j] <- 2 
+
+# Create a distance raster from the colony
+dist <- gridDistance(x, origin=2, omit=NA)
+plot(dist, col=viridis(100), xlim = c(-27.7, -27.4), ylim = c(-56.4, -56.2))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+That looks like it working fine. There isn’t a jumping in point in the
+northeast of the island as far we know, and the distance raster reflects
+this.
