@@ -392,6 +392,7 @@ Looks good. There is no jumping in point for the chinstraps in the northeast (as
 
 This is the SST temperature from above, plotted for the whole study area after interpolating it.
 ```{r}
+wMeanSST_resampled <- resample(x = wMeanSST, y = dist, method = 'bilinear')
 raster::plot(wMeanSST_resampled, col=viridis(100))
 ```
 
@@ -464,3 +465,5 @@ ggplot() +
 ```
 
 Is it ok to predict from all colonies at once like this?
+
+Next steps: weight predictions by the size of the colony?

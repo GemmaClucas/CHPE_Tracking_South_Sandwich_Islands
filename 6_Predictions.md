@@ -491,9 +491,11 @@ raster.
 ### SST
 
 This is the SST temperature from above, plotted for the whole study area
-after interpolating it.
+after interpolating
+it.
 
 ``` r
+wMeanSST_resampled <- resample(x = wMeanSST, y = dist, method = 'bilinear')
 raster::plot(wMeanSST_resampled, col=viridis(100))
 ```
 
@@ -510,13 +512,13 @@ projectRaster(wMeanSST_resampled, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +u
 ```
 
     ## class      : RasterLayer 
-    ## dimensions : 648, 997, 646056  (nrow, ncol, ncell)
-    ## resolution : 204, 200  (x, y)
-    ## extent     : -119511.7, 83876.27, -49280.75, 80319.25  (xmin, xmax, ymin, ymax)
+    ## dimensions : 2270, 1546, 3509420  (nrow, ncol, ncell)
+    ## resolution : 203, 200  (x, y)
+    ## extent     : -250405.5, 63432.49, -230376.3, 223623.7  (xmin, xmax, ymin, ymax)
     ## crs        : +proj=laea +lon_0=-26 +lat_0=-58 +units=m +ellps=WGS84 
     ## source     : memory
     ## names      : layer 
-    ## values     : 1.202468, 2.282788  (min, max)
+    ## values     : 0.6994274, 2.866962  (min, max)
 
 ``` r
 long <- seq(-250405.5 , 63432.49, 1000) #first minimum longitude in m, then max, 1000 is 1km
@@ -580,3 +582,5 @@ ggplot() +
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 Is it ok to predict from all colonies at once like this?
+
+Next steps: weight predictions by the size of the colony?
