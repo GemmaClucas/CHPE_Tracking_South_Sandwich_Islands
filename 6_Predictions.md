@@ -66,7 +66,7 @@ SSI_polygons.df %>%
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-### 1\. Predict around Saunders to check that the distribution looks ok
+## 1\. Predict around Saunders to check that the distribution looks ok
 
 This just creates a raster across the study area using the bathymetry
 raster cropped to the right extent.
@@ -121,7 +121,7 @@ mask <- mask(x, SSI_WGS84, inverse=F)
 # plot(mask, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
 ```
 
-Make a raster for the distance from colony for Saunders.
+### Make a raster for the distance from colony for Saunders
 
 ``` r
 colony_lat<- -57.808 
@@ -151,6 +151,8 @@ plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
+
+### SST raster
 
 Get the sea surface temperature data that I downloaded previously.
 
@@ -192,10 +194,11 @@ raster::plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.287
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
-Make a new raster with a 1km x 1km resolution and use this to sample the
-distance and SST rasters. The values for the max and min long/lat are
-from converting the depth raster to LAEA after cropping it to the study
-area extent
+### Make a 1km x 1km grid
+
+Use this to sample the distance and SST rasters. The values for the max
+and min long/lat are from converting the depth raster to LAEA after
+cropping it to the study area extent
 (above).
 
 ``` r
@@ -219,8 +222,7 @@ Saunders_1KmPoints$SST <- raster::extract(wMeanSST, Saunders_1KmPoints)
 Saunders_1KmPoints$colonydist <- raster::extract(dist, Saunders_1KmPoints)
 ```
 
-Make
-predictions.
+### Make predictions for Saunders
 
 ``` r
 Saunders_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = Saunders_1KmPoints))
@@ -279,14 +281,14 @@ a much smoother distribution.
 
 ``` r
 # plot the orignal data
-plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 # plot the interpolated data
-resample(x = wMeanSST, y = dist, method = 'bilinear') %>% plot(xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708))
+resample(x = wMeanSST, y = dist, method = 'bilinear') %>% plot(xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
@@ -359,7 +361,9 @@ ggplot() +
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
-### 2\. Zavodovski
+The actual distribution is pretty close to the predicted distribution.
+
+## 2\. Predict around all colonies
 
 Make raster for entire chain of islands using the bathymetry raster as a
 starting point.
@@ -411,7 +415,7 @@ plot(x, col=viridis(100))
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
 
-Make a raster of the distances from colonies on Zavodovski.
+### Make a raster of the distances from a colony on Zavodovski
 
 ``` r
 Zav1_lat<- -56.291598
@@ -431,7 +435,7 @@ plot(dist, col=viridis(100))
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
-Add a second colony on Thule.
+### Add a second colony on Thule
 
 ``` r
 Thule1_lat <- -59.464498
@@ -449,32 +453,130 @@ dist <- gridDistance(x, origin=2, omit=NA)
 plot(dist, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-16-1.png)<!-- --> So I
-can calculate the distance from more than one colony at once.
+![](6_Predictions_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
-Read in colony locations on
-    Zavodovski
+So I can calculate the distance from more than one colony at once.
+
+### Read in all colony locations and calculate distance raster
 
 ``` r
 colonies <- read.csv("Colony_LatLons.csv", header = TRUE)
-```
-
-    ## Warning in read.table(file = file, header = header, sep = sep, quote = quote, :
-    ## incomplete final line found by readTableHeader on 'Colony_LatLons.csv'
-
-``` r
 coordinates(colonies) <- ~Long+Lat
 
 j <- cellFromXY(x, colonies)
 x[j] <- 2 
 
-# Create a distance raster from the colony
+# Create a distance raster from all colonies
 dist <- gridDistance(x, origin=2, omit=NA)
-plot(dist, col=viridis(100), xlim = c(-27.7, -27.4), ylim = c(-56.4, -56.2))
+plot(dist, col = viridis(100))
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
-That looks like it working fine. There isn’t a jumping in point in the
-northeast of the island as far we know, and the distance raster reflects
-this.
+That seems to work.
+
+Zoom in on
+Zav.
+
+``` r
+plot(dist, col=viridis(100), xlim = c(-27.7, -27.4), ylim = c(-56.4, -56.2))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+Looks good. There is no jumping in point for the chinstraps in the
+northeast (as far as we know) and that is reflected in the distance
+raster.
+
+### SST
+
+This is the SST temperature from above, plotted for the whole study area
+after interpolating it.
+
+``` r
+raster::plot(wMeanSST_resampled, col=viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+### Make a grid with a 1x1km resolution to sample the raster layers
+
+First I need to find the extent of the entire island change when it’s in
+LAEA
+projection.
+
+``` r
+projectRaster(wMeanSST_resampled, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
+```
+
+    ## class      : RasterLayer 
+    ## dimensions : 648, 997, 646056  (nrow, ncol, ncell)
+    ## resolution : 204, 200  (x, y)
+    ## extent     : -119511.7, 83876.27, -49280.75, 80319.25  (xmin, xmax, ymin, ymax)
+    ## crs        : +proj=laea +lon_0=-26 +lat_0=-58 +units=m +ellps=WGS84 
+    ## source     : memory
+    ## names      : layer 
+    ## values     : 1.202468, 2.282788  (min, max)
+
+``` r
+long <- seq(-250405.5 , 63432.49, 1000) #first minimum longitude in m, then max, 1000 is 1km
+# head(long)
+lat <- seq(-230376.3, 223623.7, 1000)
+# head(lat)
+All_1KmPoints <- expand.grid(long,lat)
+names(All_1KmPoints) <- c("Lon","Lat")
+# make it spatial
+coordinates(All_1KmPoints) <- ~Lon+Lat
+proj4string(All_1KmPoints) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+
+
+# change it back to wgs84 to extract the environmental data (those layers are WGS84)
+All_1KmPoints <- spTransform(All_1KmPoints, CRS = proj4string(dist))
+
+
+# sample the distance and SST layers
+All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
+All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
+```
+
+### Make predictions for all colonies
+
+``` r
+All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
+```
+
+Make a new raster with the correct resolution and extent of the 1km
+grid, then use it to convert `All_1KmPoints` into a raster for plotting.
+
+``` r
+# new raster in LAEA
+r <- raster(ncols = 313, nrows = 454, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
+# define the extent of the raster
+extent(r) <- c(-250405.5 , 63432.49, -230376.3, 223623.7  )
+# change points into LAEA as well
+All_1KmPoints <- spTransform(All_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+# rasterize the predicted values
+r3 <- rasterize(All_1KmPoints, r, 'GAM_pred', fun=mean)
+# project back to WGS84 for plotting
+r3 <- projectRaster(from = r3, to = dist)
+#plot(r3, col=viridis(100))
+
+
+# convert to a df for plotting in two steps,
+# First, to a SpatialPointsDataFrame
+r3_pts <- rasterToPoints(r3, spatial = TRUE)
+# Then to a 'conventional' dataframe
+r3_df  <- data.frame(r3_pts)
+rm(r3_pts)
+
+ggplot() +
+  geom_raster(data = r3_df , aes(x = x, y = y, fill = layer)) + 
+  scale_fill_viridis() +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "white") +
+  ggtitle("Predicted distribution around all islands") +
+  coord_fixed(ratio = 1)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+
+Is it ok to predict from all colonies at once like this?
