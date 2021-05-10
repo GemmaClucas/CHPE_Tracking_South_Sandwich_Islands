@@ -147,10 +147,8 @@ plot(dist, col=viridis(100))
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
-plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
+#plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
 ```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
 
 ### SST raster
 
@@ -194,6 +192,21 @@ raster::plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.287
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
+The low resolution of this data makes the predictions very pixelated.
+Interpolate before making predictions.
+
+``` r
+# plot around Saunders
+resample(x = wMeanSST, y = dist, method = 'bilinear') %>% plot(xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
+# interpolate across entire archipelago
+wMeanSST_resampled <- resample(x = wMeanSST, y = dist, method = 'bilinear')
+```
+
 ### Make a 1km x 1km grid
 
 Use this to sample the distance and SST rasters. The values for the max
@@ -218,7 +231,7 @@ Saunders_1KmPoints <- spTransform(Saunders_1KmPoints, CRS = proj4string(dist))
 
 
 # sample the distance and SST layers
-Saunders_1KmPoints$SST <- raster::extract(wMeanSST, Saunders_1KmPoints)
+Saunders_1KmPoints$SST <- raster::extract(wMeanSST_resampled, Saunders_1KmPoints)
 Saunders_1KmPoints$colonydist <- raster::extract(dist, Saunders_1KmPoints)
 ```
 
@@ -265,72 +278,7 @@ ggplot() +
                 clip = "on")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
-
-The low resolution of the SST data is making the prediction quite
-pixelated. Also, the missing values where the island is do not quite
-match the actual location of the island. I have checked and re-checked
-the projections, and I think this is just a problem with the underlying
-data, unfortunately.
-
-Can I interpolate the SST data to make it smoother and fill in the gap
-to the north of the island? I am using the distance from colony raster
-layer to interpolate the SST layer. I tried both the bilinear and
-nearest neighbour method for interpolation, and the bilinear method gave
-a much smoother distribution.
-
-``` r
-# plot the orignal data
-plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
-```
-
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
-
-``` r
-# plot the interpolated data
-resample(x = wMeanSST, y = dist, method = 'bilinear') %>% plot(xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
-
-This looks pretty good. Save and use for the
-model.
-
-``` r
-wMeanSST_resampled <- resample(x = wMeanSST, y = dist, method = 'bilinear')
-# change points back to WGS84
-Saunders_1KmPoints <- spTransform(Saunders_1KmPoints, CRS = proj4string(wMeanSST))
-# sample the points for the predicted distribtion
-Saunders_1KmPoints$SST <- raster::extract(wMeanSST_resampled, Saunders_1KmPoints)
-# rerun the GAM
-Saunders_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = Saunders_1KmPoints))
-# rasterize the predicted values (r is already in LAEA so must transform Saunders_1KmPoints)
-Saunders_1KmPoints <- spTransform(Saunders_1KmPoints, CRS = proj4string(r))
-r3 <- rasterize(Saunders_1KmPoints, r, 'GAM_pred', fun=mean)
-# project back to WGS84 for plotting
-r3 <- projectRaster(from = r3, to = dist)
-#plot(r3, col=viridis(100))
-
-# convert to a df for plotting in two steps,
-# First, to a SpatialPointsDataFrame
-r3_pts <- rasterToPoints(r3, spatial = TRUE)
-# Then to a 'conventional' dataframe
-r3_df  <- data.frame(r3_pts)
-rm(r3_pts)
-
-ggplot() +
-  geom_raster(data = r3_df , aes(x = x, y = y, fill = layer)) + 
-  scale_fill_viridis() +
-  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "white") +
-  ggtitle("Predicted distribution around Saunders Island after interpolating SST") +
-  coord_fixed(ratio = 1,
-                xlim = c(-27.96598, -24.623),
-                ylim = c(-58.41806, -57.28708),
-                expand = TRUE,
-                clip = "on")
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 What is the actual distribution of the
 data?
@@ -359,11 +307,11 @@ ggplot() +
   theme(legend.position = "none")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 The actual distribution is pretty close to the predicted distribution.
 
-## 2\. Predict around all colonies
+## 2\. Predict around all other colonies
 
 Make raster for entire chain of islands using the bathymetry raster as a
 starting point.
@@ -400,7 +348,7 @@ mask <- mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
 plot(mask, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ``` r
 # Set all values to 1
@@ -413,7 +361,7 @@ x <- mask(x, SSI_WGS84, inverse=F)
 plot(x, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->
 
 ### SST
 
@@ -425,7 +373,7 @@ wMeanSST_resampled <- resample(x = wMeanSST, y = x, method = 'bilinear')
 raster::plot(wMeanSST_resampled, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ### Make a grid with a 1x1km resolution to sample the raster layers
 
@@ -463,7 +411,8 @@ All_1KmPoints <- spTransform(All_1KmPoints, CRS = proj4string(dist))
 ```
 
 I also need to make a new raster with the correct resolution and extent
-of the study area, which I will use to rasterise the 1km grid with.
+of the study area, which I will use to rasterise the 1km grid with
+later.
 
 ``` r
 # new raster in LAEA
@@ -479,76 +428,163 @@ colonies <- read.csv("Colony_LatLons.csv", header = TRUE)
 coordinates(colonies) <- ~Long+Lat
 ```
 
-### 1\. Zavodovski
+### Make functions to predict the distribution and plot
 
 ``` r
-ZAV <- colonies %>% subset(., str_detect(Colony, "ZAV"))
+single_island_prediction <- function(colony_name) {
+  location <- colonies %>% subset(., str_detect(Colony, colony_name))
+  j <- cellFromXY(x, location)
+  x[j] <- 2 
+  # Create a distance raster from the colony
+  dist <- gridDistance(x, origin=2, omit=NA)
+  # sample the distance and SST layers
+  All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
+  All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
+  # Make predictions
+  All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
+  # change points into LAEA so that it matches the raster
+  All_1KmPoints <- spTransform(All_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+  # rasterize the predicted values
+  r3 <- rasterize(All_1KmPoints, r, 'GAM_pred', fun=mean)
+  # project back to WGS84 for plotting
+  r3 <- projectRaster(from = r3, to = dist)
+}
 
-j <- cellFromXY(x, ZAV)
-x[j] <- 2 
 
-# Create a distance raster from all colonies
-dist <- gridDistance(x, origin=2, omit=NA)
-plot(dist, col = viridis(100))
+plot_predicted_distribution <- function(raster, colony_name) {
+  # convert to a df for plotting in two steps,
+  # First, to a SpatialPointsDataFrame
+  r3_pts <- rasterToPoints(raster, spatial = TRUE)
+  # Then to a 'conventional' dataframe
+  r3_df  <- data.frame(r3_pts)
+  rm(r3_pts)
+  ggplot() +
+    geom_raster(data = r3_df , aes(x = x, y = y, fill = layer)) + 
+    scale_fill_viridis() +
+    geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "white") +
+    ggtitle(paste0("Predicted distribution around ", colony_name)) +
+    coord_fixed(ratio = 1)
+}
+```
+
+### Run for each colony
+
+``` r
+# colony_codes <- c("CAND", "BRIS")
+# predicted_rasters <- purrr::map(colony_codes, ~assign(paste0(colony_codes, "_predicted"), single_island_prediction(colony_codes)))
+
+colony_code <- "ZAV"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Zavodovski")
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
-That seems to work.
+``` r
+colony_code <- "VIS"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Visokoi")
+```
 
-Zoom in on
-Zav.
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
 
 ``` r
-plot(dist, col=viridis(100), xlim = c(-27.7, -27.4), ylim = c(-56.4, -56.2))
+colony_code <- "CAND"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Candelmas")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->
+
+``` r
+colony_code <- "VIND"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Vindication")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-4.png)<!-- -->
+
+``` r
+colony_code <- "SAUN"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Saunders")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-5.png)<!-- -->
+
+``` r
+colony_code <- "MONT"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Montagu")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-6.png)<!-- -->
+
+``` r
+colony_code <- "BRIS"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Bristol")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-7.png)<!-- -->
+
+``` r
+colony_code <- "BELL"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Bellingshausen")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-8.png)<!-- -->
+
+``` r
+colony_code <- "COOK"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Cook")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-9.png)<!-- -->
+
+``` r
+colony_code <- "THUL"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Thule")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-10.png)<!-- -->
+
+### Calculate weighted distributions for each island
+
+I want to calculate the importance of each cell by dividing its value
+(the probability of occurrence of a penguin) by the sum of the
+probability of occurences across all cells in that raster, and then
+multiply by the colony size. This will give the expected number of
+individuals that would forage in that cell.
+
+``` r
+importance <- function(x) {
+  col <- get(paste0(x, "_predicted"))
+  col / cellStats(col, stat = "sum")
+}
+
+ZAV_expected <- importance("ZAV") * 1000000
+VIS_expected <- importance("VIS") * 185000
+CAND_expected <- importance("CAND") * 205000
+VIND_expected <- importance("VIND") * 95000
+SAUN_expected <- importance("SAUN") * 155000
+MONT_expected <- importance("MONT") * 10000
+BRIS_expected <- importance("BRIS") * 15000
+BELL_expected <- importance("BELL") * 36000
+COOK_expected <- importance("COOK") * 1000
+THUL_expected <- importance("THUL") * 100000
+
+stack <- stack(ZAV_expected, VIS_expected, CAND_expected, VIND_expected, SAUN_expected, MONT_expected, BRIS_expected, BELL_expected, COOK_expected, THUL_expected)
+stack_sum <- calc(stack, sum)
+
+plot(stack_sum, col=viridis(100))
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
-Looks good. There is no jumping in point for the chinstraps in the
-northeast (as far as we know) and that is reflected in the distance
-raster.
-
-Now sample the SST and distance rasters.
-
-``` r
-# sample the distance and SST layers
-All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
-All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
-```
-
-### Make predictions for Zav
-
-``` r
-All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
-```
-
-Convert `All_1KmPoints` into a raster for plotting, using the raster
-created above.
-
-``` r
-# change points into LAEA so that it matches the raster
-All_1KmPoints <- spTransform(All_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
-# rasterize the predicted values
-r3 <- rasterize(All_1KmPoints, r, 'GAM_pred', fun=mean)
-# project back to WGS84 for plotting
-r3 <- projectRaster(from = r3, to = dist)
-#plot(r3, col=viridis(100))
-
-
-# convert to a df for plotting in two steps,
-# First, to a SpatialPointsDataFrame
-r3_pts <- rasterToPoints(r3, spatial = TRUE)
-# Then to a 'conventional' dataframe
-r3_df  <- data.frame(r3_pts)
-rm(r3_pts)
-
-ggplot() +
-  geom_raster(data = r3_df , aes(x = x, y = y, fill = layer)) + 
-  scale_fill_viridis() +
-  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "white") +
-  ggtitle("Predicted distribution around Zavodovski") +
-  coord_fixed(ratio = 1)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+What are the units for the predicted number of penguins? I think I need
+to plot in LAEA to be able to say the plotted values predict x penguins
+per km (or whatever).

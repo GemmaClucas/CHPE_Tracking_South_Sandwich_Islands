@@ -337,7 +337,6 @@ coordinates(colonies) <- ~Long+Lat
 ### Make functions to predict the distribution and plot
 
 
-Make this into a function
 ```{r}
 
 single_island_prediction <- function(colony_name) {
@@ -378,13 +377,81 @@ plot_predicted_distribution <- function(raster, colony_name) {
 
 ```
 
+### Run for each colony
+
 ```{r}
-colony_code <- "VIS"
+# colony_codes <- c("CAND", "BRIS")
+# predicted_rasters <- purrr::map(colony_codes, ~assign(paste0(colony_codes, "_predicted"), single_island_prediction(colony_codes)))
 
+colony_code <- "ZAV"
 assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Zavodovski")
 
+colony_code <- "VIS"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Visokoi")
 
+colony_code <- "CAND"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Candelmas")
+
+colony_code <- "VIND"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Vindication")
+
+colony_code <- "SAUN"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Saunders")
+
+colony_code <- "MONT"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Montagu")
+
+colony_code <- "BRIS"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Bristol")
+
+colony_code <- "BELL"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Bellingshausen")
+
+colony_code <- "COOK"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Cook")
+
+colony_code <- "THUL"
+assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
+plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Thule")
+```
+
+### Calculate weighted distributions for each island
+
+I want to calculate the importance of each cell by dividing its value (the probability of occurrence of a penguin) by the sum of the probability of occurences across all cells in that raster, and then multiply by the colony size. This will give the expected number of individuals that would forage in that cell.
+
+```{r}
+
+importance <- function(x) {
+  col <- get(paste0(x, "_predicted"))
+  col / cellStats(col, stat = "sum")
+}
+
+ZAV_expected <- importance("ZAV") * 1000000
+VIS_expected <- importance("VIS") * 185000
+CAND_expected <- importance("CAND") * 205000
+VIND_expected <- importance("VIND") * 95000
+SAUN_expected <- importance("SAUN") * 155000
+MONT_expected <- importance("MONT") * 10000
+BRIS_expected <- importance("BRIS") * 15000
+BELL_expected <- importance("BELL") * 36000
+COOK_expected <- importance("COOK") * 1000
+THUL_expected <- importance("THUL") * 100000
+
+stack <- stack(ZAV_expected, VIS_expected, CAND_expected, VIND_expected, SAUN_expected, MONT_expected, BRIS_expected, BELL_expected, COOK_expected, THUL_expected)
+stack_sum <- calc(stack, sum)
+
+plot(stack_sum, col=viridis(100))
 
 ```
+
+What are the units for the predicted number of penguins? I think I need to plot in LAEA to be able to say the plotted values predict x penguins per km (or whatever).
 
