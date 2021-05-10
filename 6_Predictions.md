@@ -415,91 +415,17 @@ plot(x, col=viridis(100))
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
 
-### Make a raster of the distances from a colony on Zavodovski
-
-``` r
-Zav1_lat<- -56.291598
-Zav1_lon<- -27.600711
-
-# Find the colony cell in the study area raster
-j <- cellFromXY(x, cbind(Zav1_lon, Zav1_lat))
-# Change the value of the cell where the colony is to 2 (all the other cells are 1)
-x[j]<-2 
-
-
-# Create a distance raster from the colony
-# Moving through land is prevented by omiting cells with NA values
-dist <- gridDistance(x, origin=2, omit=NA)
-plot(dist, col=viridis(100))
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
-
-### Add a second colony on Thule
-
-``` r
-Thule1_lat <- -59.464498
-Thule1_lon <- -27.307218
-
-# Find the colony cell in the study area raster
-j <- cellFromXY(x, cbind(Thule1_lon, Thule1_lat))
-# Change the value of the cell where the colony is to 2 (all the other cells are 1)
-x[j] <- 2 
-
-
-# Create a distance raster from the colony
-# Moving through land is prevented by omiting cells with NA values
-dist <- gridDistance(x, origin=2, omit=NA)
-plot(dist, col=viridis(100))
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
-
-So I can calculate the distance from more than one colony at once.
-
-### Read in all colony locations and calculate distance raster
-
-``` r
-colonies <- read.csv("Colony_LatLons.csv", header = TRUE)
-coordinates(colonies) <- ~Long+Lat
-
-j <- cellFromXY(x, colonies)
-x[j] <- 2 
-
-# Create a distance raster from all colonies
-dist <- gridDistance(x, origin=2, omit=NA)
-plot(dist, col = viridis(100))
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
-
-That seems to work.
-
-Zoom in on
-Zav.
-
-``` r
-plot(dist, col=viridis(100), xlim = c(-27.7, -27.4), ylim = c(-56.4, -56.2))
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
-
-Looks good. There is no jumping in point for the chinstraps in the
-northeast (as far as we know) and that is reflected in the distance
-raster.
-
 ### SST
 
 This is the SST temperature from above, plotted for the whole study area
-after interpolating
-it.
+after interpolating it.
 
 ``` r
-wMeanSST_resampled <- resample(x = wMeanSST, y = dist, method = 'bilinear')
+wMeanSST_resampled <- resample(x = wMeanSST, y = x, method = 'bilinear')
 raster::plot(wMeanSST_resampled, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ### Make a grid with a 1x1km resolution to sample the raster layers
 
@@ -534,28 +460,74 @@ proj4string(All_1KmPoints) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
 
 # change it back to wgs84 to extract the environmental data (those layers are WGS84)
 All_1KmPoints <- spTransform(All_1KmPoints, CRS = proj4string(dist))
-
-
-# sample the distance and SST layers
-All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
-All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
 ```
 
-### Make predictions for all colonies
-
-``` r
-All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
-```
-
-Make a new raster with the correct resolution and extent of the 1km
-grid, then use it to convert `All_1KmPoints` into a raster for plotting.
+I also need to make a new raster with the correct resolution and extent
+of the study area, which I will use to rasterise the 1km grid with.
 
 ``` r
 # new raster in LAEA
 r <- raster(ncols = 313, nrows = 454, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
 # define the extent of the raster
 extent(r) <- c(-250405.5 , 63432.49, -230376.3, 223623.7  )
-# change points into LAEA as well
+```
+
+### Read in all colony locations
+
+``` r
+colonies <- read.csv("Colony_LatLons.csv", header = TRUE)
+coordinates(colonies) <- ~Long+Lat
+```
+
+### 1\. Zavodovski
+
+``` r
+ZAV <- colonies %>% subset(., str_detect(Colony, "ZAV"))
+
+j <- cellFromXY(x, ZAV)
+x[j] <- 2 
+
+# Create a distance raster from all colonies
+dist <- gridDistance(x, origin=2, omit=NA)
+plot(dist, col = viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+That seems to work.
+
+Zoom in on
+Zav.
+
+``` r
+plot(dist, col=viridis(100), xlim = c(-27.7, -27.4), ylim = c(-56.4, -56.2))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+Looks good. There is no jumping in point for the chinstraps in the
+northeast (as far as we know) and that is reflected in the distance
+raster.
+
+Now sample the SST and distance rasters.
+
+``` r
+# sample the distance and SST layers
+All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
+All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
+```
+
+### Make predictions for Zav
+
+``` r
+All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
+```
+
+Convert `All_1KmPoints` into a raster for plotting, using the raster
+created above.
+
+``` r
+# change points into LAEA so that it matches the raster
 All_1KmPoints <- spTransform(All_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
 # rasterize the predicted values
 r3 <- rasterize(All_1KmPoints, r, 'GAM_pred', fun=mean)
@@ -575,12 +547,8 @@ ggplot() +
   geom_raster(data = r3_df , aes(x = x, y = y, fill = layer)) + 
   scale_fill_viridis() +
   geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "white") +
-  ggtitle("Predicted distribution around all islands") +
+  ggtitle("Predicted distribution around Zavodovski") +
   coord_fixed(ratio = 1)
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
-
-Is it ok to predict from all colonies at once like this?
-
-Next steps: weight predictions by the size of the colony?
+![](6_Predictions_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
