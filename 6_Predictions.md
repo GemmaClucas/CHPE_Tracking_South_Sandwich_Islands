@@ -31,7 +31,7 @@ Seamask<-readOGR("Seamask.shp")
     ## It has 1 fields
 
 ``` r
-SSI_polygons <- crop(Seamask, c(450000, 1095192, -795043.9, -100000)) %>% 
+SSI_polygons <- crop(Seamask, c(450000, 1095192, -695043.9, -100000)) %>% 
   spTransform(., crs("+init=epsg:4326"))
 ```
 
@@ -69,13 +69,14 @@ SSI_polygons.df %>%
 ## 1\. Predict around Saunders to check that the distribution looks ok
 
 This just creates a raster across the study area using the bathymetry
-raster cropped to the right extent.
+raster cropped to the right
+extent.
 
 ``` r
-# Read in bathymetry raster and crop to extent of the study area
+# Read in bathymetry raster and crop to extent of the study area around Saunders
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
-  crop(., c(-27.96598, -24.623, -58.41806, -57.28708))
+  crop(., c(-27.96598, -24.623, -58.41806, -57))
 
 x <- SSI_bath_WGS84
 
@@ -85,17 +86,17 @@ extent(y)
 ```
 
     ## class      : Extent 
-    ## xmin       : -119511.7 
-    ## xmax       : 83876.27 
-    ## ymin       : -49280.75 
-    ## ymax       : 80319.25
+    ## xmin       : -120437.4 
+    ## xmax       : 84582.62 
+    ## ymin       : -49208.78 
+    ## ymax       : 112391.2
 
 Crop out land from the bathymetry raster using `mask()`
 
 ``` r
 # Read in shapefile for land
 SSI_WGS84 <- readOGR("Seamask.shp") %>% 
-  crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
+  crop(., c(450000, 1095192, -695043.9, -100000)) %>% 
   spTransform(., crs("+init=epsg:4326"))
 ```
 
@@ -115,6 +116,7 @@ SSI_WGS84 <- readOGR("Seamask.shp") %>%
 ``` r
 # Cut out land
 mask <- mask(x, SSI_WGS84, inverse=F)
+
 
 # Plot to check
 # plot(mask, col=viridis(100))
@@ -217,7 +219,7 @@ cropping it to the study area extent
 ``` r
 long <- seq(-119511.7 , 83876.27, 1000) #first minimum longitude in m, then max, 1000 is 1km
 # head(long)
-lat <- seq(-49280.75, 80319.25, 1000)
+lat <- seq(-49280.75, 112391.2 , 1000)
 # head(lat)
 Saunders_1KmPoints <- expand.grid(long,lat)
 names(Saunders_1KmPoints) <- c("Lon","Lat")
@@ -247,7 +249,9 @@ plotting.
 
 ``` r
 # new raster in LAEA
-r <- raster(ncols = 204, nrows = 130, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
+r <- raster(ncols = (max(lat) - min(lat)) / 1000, 
+            nrows = (max(long) - min(long)) / 1000, 
+            crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
 # define the extent of the raster
 extent(r) <- c(-119511.7 , 83876.27, -49280.75, 80319.25  )
 # change points into LAEA as well
@@ -319,7 +323,7 @@ starting point.
 ``` r
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
-  crop(., c(-30, -25, -60, -56))
+  crop(., c(-30, -25, -60, -55))
 
 # Read in shapefile for land
 SSI_WGS84 <- readOGR("Seamask.shp") %>% 
@@ -386,18 +390,18 @@ projectRaster(wMeanSST_resampled, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +u
 ```
 
     ## class      : RasterLayer 
-    ## dimensions : 2270, 1546, 3509420  (nrow, ncol, ncell)
-    ## resolution : 203, 200  (x, y)
-    ## extent     : -250405.5, 63432.49, -230376.3, 223623.7  (xmin, xmax, ymin, ymax)
+    ## dimensions : 2827, 1563, 4418601  (nrow, ncol, ncell)
+    ## resolution : 206, 200  (x, y)
+    ## extent     : -256872, 65105.97, -230376.5, 335023.5  (xmin, xmax, ymin, ymax)
     ## crs        : +proj=laea +lon_0=-26 +lat_0=-58 +units=m +ellps=WGS84 
     ## source     : memory
     ## names      : layer 
-    ## values     : 0.6994274, 2.866962  (min, max)
+    ## values     : 0.699416, 3.820712  (min, max)
 
 ``` r
-long <- seq(-250405.5 , 63432.49, 1000) #first minimum longitude in m, then max, 1000 is 1km
+long <- seq(-256872 , 65105.97, 1000) #first minimum longitude in m, then max, 1000 is 1km
 # head(long)
-lat <- seq(-230376.3, 223623.7, 1000)
+lat <- seq(-230376.3, 335023.5, 1000)
 # head(lat)
 All_1KmPoints <- expand.grid(long,lat)
 names(All_1KmPoints) <- c("Lon","Lat")
@@ -416,9 +420,11 @@ later.
 
 ``` r
 # new raster in LAEA
-r <- raster(ncols = 313, nrows = 454, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
+r <- raster(ncols = (max(long) - min(long)) / 1000, 
+            nrows = (max(lat) - min(lat)) / 1000, 
+            crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
 # define the extent of the raster
-extent(r) <- c(-250405.5 , 63432.49, -230376.3, 223623.7  )
+extent(r) <- c(-256872 , 65105.97, -230376.3, 335023.5)
 ```
 
 ### Read in all colony locations
@@ -552,13 +558,45 @@ plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Thule")
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-20-10.png)<!-- -->
 
+Plot all of them on one
+plot.
+
+``` r
+stack_predicted <- stack(ZAV_predicted, VIS_predicted, CAND_predicted, VIND_predicted, SAUN_predicted, MONT_predicted, BRIS_predicted, BELL_predicted, COOK_predicted, THUL_predicted)
+
+stack_predicted_sum <- calc(stack_predicted, sum)
+
+# Convert to a SpatialPointsDataFrame
+stack_predicted_sum_pts <- rasterToPoints(stack_predicted_sum, spatial = TRUE)
+# Then to a dataframe
+stack_predicted_sum_df  <- data.frame(stack_predicted_sum_pts)
+rm(stack_predicted_sum_pts)
+
+ggplot() +
+  geom_raster(data = stack_predicted_sum_df , aes(x = x, y = y, fill = layer)) + 
+  scale_fill_gradientn(colours=c("#FFFFFFFF","#003366")) +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
+  ggtitle(paste0("Probability of occurence around all islands")) +
+  coord_fixed(ratio = 1) +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+This doesn’t work because the predictions around Cook, Thule, and
+Bellingshausen are summing because they’re basically on top of each
+other… I think that if I want to do it this way then I need to go back
+to the way I originally did it, where I had just a single distance
+raster for all colonies and had just one predictec output raster.
+
 ### Calculate weighted distributions for each island
 
-I want to calculate the importance of each cell by dividing its value
-(the probability of occurrence of a penguin) by the sum of the
-probability of occurences across all cells in that raster, and then
-multiply by the colony size. This will give the expected number of
-individuals that would forage in that cell.
+Calculate the importance of each cell by dividing its value (the
+probability of occurrence of a penguin) by the sum of the probability of
+occurences across all cells in that raster, and then multiply by the
+colony size. This will give the expected number of individuals that
+would forage in that cell.
 
 ``` r
 importance <- function(x) {
@@ -580,11 +618,31 @@ THUL_expected <- importance("THUL") * 100000
 stack <- stack(ZAV_expected, VIS_expected, CAND_expected, VIND_expected, SAUN_expected, MONT_expected, BRIS_expected, BELL_expected, COOK_expected, THUL_expected)
 stack_sum <- calc(stack, sum)
 
-plot(stack_sum, col=viridis(100))
+#plot(stack_sum, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+What are the units for the predicted number of penguins? The raster that
+I created to convert the points into a raster has a 1 x 1 km resolution,
+so if I have converted it to WGS84 for plotting, can I still say that
+this is the predicted number of penguins per km^2?
 
-What are the units for the predicted number of penguins? I think I need
-to plot in LAEA to be able to say the plotted values predict x penguins
-per km (or whatever).
+Plot weighted distribution.
+
+``` r
+# Convert to a SpatialPointsDataFrame
+stack_sum_pts <- rasterToPoints(stack_sum, spatial = TRUE)
+# Then to a dataframe
+stack_sum_df  <- data.frame(stack_sum_pts)
+rm(stack_sum_pts)
+
+ggplot() +
+  geom_raster(data = stack_sum_df , aes(x = x, y = y, fill = layer)) + 
+  scale_fill_gradientn(colours=c("#FFFFFFFF","#660033")) +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
+  ggtitle(paste0("Weighted probability of occurence around all islands")) +
+  coord_fixed(ratio = 1) +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->

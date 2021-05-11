@@ -34,7 +34,7 @@ GAM <- gam(pres ~ s(colonydist, k = 3) + s(SST, k = 6), data=data, bs="cs", fami
 Note this is unprojected (WGS84).
 ```{r}
 Seamask<-readOGR("Seamask.shp")
-SSI_polygons <- crop(Seamask, c(450000, 1095192, -795043.9, -100000)) %>% 
+SSI_polygons <- crop(Seamask, c(450000, 1095192, -695043.9, -100000)) %>% 
   spTransform(., crs("+init=epsg:4326"))
 
 # convert to dataframe for use with ggplot2
@@ -62,10 +62,10 @@ SSI_polygons.df %>%
 
 This just creates a raster across the study area using the bathymetry raster cropped to the right extent.
 ```{r}
-# Read in bathymetry raster and crop to extent of the study area
+# Read in bathymetry raster and crop to extent of the study area around Saunders
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
-  crop(., c(-27.96598, -24.623, -58.41806, -57.28708))
+  crop(., c(-27.96598, -24.623, -58.41806, -57))
 
 x <- SSI_bath_WGS84
 
@@ -79,11 +79,12 @@ Crop out land from the bathymetry raster using ```mask()```
 ```{r}
 # Read in shapefile for land
 SSI_WGS84 <- readOGR("Seamask.shp") %>% 
-  crop(., c(450000, 1095192, -795043.9, -100000)) %>% 
+  crop(., c(450000, 1095192, -695043.9, -100000)) %>% 
   spTransform(., crs("+init=epsg:4326"))
 
 # Cut out land
 mask <- mask(x, SSI_WGS84, inverse=F)
+
 
 # Plot to check
 # plot(mask, col=viridis(100))
@@ -166,7 +167,7 @@ Use this to sample the distance and SST rasters. The values for the max and min 
 ```{r}
 long <- seq(-119511.7 , 83876.27, 1000) #first minimum longitude in m, then max, 1000 is 1km
 # head(long)
-lat <- seq(-49280.75, 80319.25, 1000)
+lat <- seq(-49280.75, 112391.2 , 1000)
 # head(lat)
 Saunders_1KmPoints <- expand.grid(long,lat)
 names(Saunders_1KmPoints) <- c("Lon","Lat")
@@ -194,7 +195,9 @@ Saunders_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata 
 Make a new raster with the correct resolution and extent of the 1km grid, then use it to convert ```Saunders_1KmPoints``` into a raster for plotting.
 ```{r}
 # new raster in LAEA
-r <- raster(ncols = 204, nrows = 130, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
+r <- raster(ncols = (max(lat) - min(lat)) / 1000, 
+            nrows = (max(long) - min(long)) / 1000, 
+            crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
 # define the extent of the raster
 extent(r) <- c(-119511.7 , 83876.27, -49280.75, 80319.25  )
 # change points into LAEA as well
@@ -263,7 +266,7 @@ Make raster for entire chain of islands using the bathymetry raster as a startin
 ```{r}
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
-  crop(., c(-30, -25, -60, -56))
+  crop(., c(-30, -25, -60, -55))
 
 # Read in shapefile for land
 SSI_WGS84 <- readOGR("Seamask.shp") %>% 
@@ -303,9 +306,9 @@ projectRaster(wMeanSST_resampled, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +u
 
 
 ```{r}
-long <- seq(-250405.5 , 63432.49, 1000) #first minimum longitude in m, then max, 1000 is 1km
+long <- seq(-256872 , 65105.97, 1000) #first minimum longitude in m, then max, 1000 is 1km
 # head(long)
-lat <- seq(-230376.3, 223623.7, 1000)
+lat <- seq(-230376.3, 335023.5, 1000)
 # head(lat)
 All_1KmPoints <- expand.grid(long,lat)
 names(All_1KmPoints) <- c("Lon","Lat")
@@ -321,9 +324,11 @@ All_1KmPoints <- spTransform(All_1KmPoints, CRS = proj4string(dist))
 I also need to make a new raster with the correct resolution and extent of the study area, which I will use to rasterise the 1km grid with later.
 ```{r}
 # new raster in LAEA
-r <- raster(ncols = 313, nrows = 454, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
+r <- raster(ncols = (max(long) - min(long)) / 1000, 
+            nrows = (max(lat) - min(lat)) / 1000, 
+            crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")) 
 # define the extent of the raster
-extent(r) <- c(-250405.5 , 63432.49, -230376.3, 223623.7  )
+extent(r) <- c(-256872 , 65105.97, -230376.3, 335023.5)
 
 ```
 
@@ -424,9 +429,33 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Thule")
 ```
 
+Plot all of them on one plot.
+```{r}
+stack_predicted <- stack(ZAV_predicted, VIS_predicted, CAND_predicted, VIND_predicted, SAUN_predicted, MONT_predicted, BRIS_predicted, BELL_predicted, COOK_predicted, THUL_predicted)
+
+stack_predicted_sum <- calc(stack_predicted, sum)
+
+# Convert to a SpatialPointsDataFrame
+stack_predicted_sum_pts <- rasterToPoints(stack_predicted_sum, spatial = TRUE)
+# Then to a dataframe
+stack_predicted_sum_df  <- data.frame(stack_predicted_sum_pts)
+rm(stack_predicted_sum_pts)
+
+ggplot() +
+  geom_raster(data = stack_predicted_sum_df , aes(x = x, y = y, fill = layer)) + 
+  scale_fill_gradientn(colours=c("#FFFFFFFF","#003366")) +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
+  ggtitle(paste0("Probability of occurence around all islands")) +
+  coord_fixed(ratio = 1) +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
+
+This doesn't work because the predictions around Cook, Thule, and Bellingshausen are summing because they're basically on top of each other... I think that if I want to do it this way then I need to go back to the way I originally did it, where I had just a single distance raster for all colonies and had just one predictec output raster.
+
 ### Calculate weighted distributions for each island
 
-I want to calculate the importance of each cell by dividing its value (the probability of occurrence of a penguin) by the sum of the probability of occurences across all cells in that raster, and then multiply by the colony size. This will give the expected number of individuals that would forage in that cell.
+Calculate the importance of each cell by dividing its value (the probability of occurrence of a penguin) by the sum of the probability of occurences across all cells in that raster, and then multiply by the colony size. This will give the expected number of individuals that would forage in that cell.
 
 ```{r}
 
@@ -449,9 +478,27 @@ THUL_expected <- importance("THUL") * 100000
 stack <- stack(ZAV_expected, VIS_expected, CAND_expected, VIND_expected, SAUN_expected, MONT_expected, BRIS_expected, BELL_expected, COOK_expected, THUL_expected)
 stack_sum <- calc(stack, sum)
 
-plot(stack_sum, col=viridis(100))
+#plot(stack_sum, col=viridis(100))
 
 ```
 
-What are the units for the predicted number of penguins? I think I need to plot in LAEA to be able to say the plotted values predict x penguins per km (or whatever).
+What are the units for the predicted number of penguins? The raster that I created to convert the points into a raster has a 1 x 1 km resolution, so if I have converted it to WGS84 for plotting, can I still say that this is the predicted number of penguins per km^2?
+
+Plot weighted distribution.
+```{r}
+# Convert to a SpatialPointsDataFrame
+stack_sum_pts <- rasterToPoints(stack_sum, spatial = TRUE)
+# Then to a dataframe
+stack_sum_df  <- data.frame(stack_sum_pts)
+rm(stack_sum_pts)
+
+ggplot() +
+  geom_raster(data = stack_sum_df , aes(x = x, y = y, fill = layer)) + 
+  scale_fill_gradientn(colours=c("#FFFFFFFF","#660033")) +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
+  ggtitle(paste0("Weighted probability of occurence around all islands")) +
+  coord_fixed(ratio = 1) +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
 
