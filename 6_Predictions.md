@@ -558,22 +558,45 @@ plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Thule")
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-20-10.png)<!-- -->
 
-Plot all of them on one
-plot.
+### Predict for all colonies at the same time
+
+I can’t just sum up all the individual raster layers and plot, because
+the distributions around Thule, Cook, and Bellingshausen overlap so
+much.
 
 ``` r
-stack_predicted <- stack(ZAV_predicted, VIS_predicted, CAND_predicted, VIND_predicted, SAUN_predicted, MONT_predicted, BRIS_predicted, BELL_predicted, COOK_predicted, THUL_predicted)
+# Find the cells where the colonies are in the raster x
+j <- cellFromXY(x, colonies)
+x[j] <- 2 
 
-stack_predicted_sum <- calc(stack_predicted, sum)
+# Create a distance raster from all colonies
+dist <- gridDistance(x, origin=2, omit=NA)
+plot(dist, col = viridis(100))
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+``` r
+# sample the distance layers
+All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
+All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
+# Make predictions
+All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
+# change points into LAEA 
+All_1KmPoints <- spTransform(All_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
+# rasterize the predicted values
+r3 <- rasterize(All_1KmPoints, r, 'GAM_pred', fun=mean)
+# project back to WGS84 for plotting
+r3 <- projectRaster(from = r3, to = dist)
 
 # Convert to a SpatialPointsDataFrame
-stack_predicted_sum_pts <- rasterToPoints(stack_predicted_sum, spatial = TRUE)
+r3_pts <- rasterToPoints(r3, spatial = TRUE)
 # Then to a dataframe
-stack_predicted_sum_df  <- data.frame(stack_predicted_sum_pts)
-rm(stack_predicted_sum_pts)
+r3_df  <- data.frame(r3_pts)
+rm(r3_pts)
 
 ggplot() +
-  geom_raster(data = stack_predicted_sum_df , aes(x = x, y = y, fill = layer)) + 
+  geom_raster(data = r3_df , aes(x = x, y = y, fill = layer)) + 
   scale_fill_gradientn(colours=c("#FFFFFFFF","#003366")) +
   geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
   ggtitle(paste0("Probability of occurence around all islands")) +
@@ -582,15 +605,11 @@ ggplot() +
   ylab("Latitude")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
-
-This doesn’t work because the predictions around Cook, Thule, and
-Bellingshausen are summing because they’re basically on top of each
-other… I think that if I want to do it this way then I need to go back
-to the way I originally did it, where I had just a single distance
-raster for all colonies and had just one predictec output raster.
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
 
 ### Calculate weighted distributions for each island
+
+This uses the single island predicted distributions calculated above.
 
 Calculate the importance of each cell by dividing its value (the
 probability of occurrence of a penguin) by the sum of the probability of
