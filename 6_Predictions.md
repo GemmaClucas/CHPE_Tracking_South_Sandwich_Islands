@@ -66,6 +66,160 @@ SSI_polygons.df %>%
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
+## MPA boundaries
+
+These are all individual shape files that I have downloaded from
+[here](https://add.data.bas.ac.uk/repository/entry/show?entryid=7f3136e7-8b50-4909-bb82-f4223a4f9768).
+There is a useful [viewer](https://sggis.gov.gs/) too. They are in some
+weird projection so I am converting all to WGS84 before plotting.
+
+``` r
+# function to convert SpatialPolygonsDataFrame to regular dataframe
+spatialpolygons_to_df <- function(sp) {
+  sp@data$id = rownames(sp@data)
+  sp.points = fortify(sp, region="id")
+  sp.df = plyr::join(sp.points, sp@data, by="id")
+}
+
+# This is the entire extent of the MPA around SG and SSI
+SGSSI_MPA <- readOGR("MPA/SG_MPA/sg_mpa.shp") %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/SG_MPA/sg_mpa.shp", layer: "sg_mpa"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  Id
+
+``` r
+plot(SGSSI_MPA)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+``` r
+SGSSI_MPA.df <- spatialpolygons_to_df(SGSSI_MPA)
+
+# CCAMLR management areas
+CCAMLR <- readOGR("MPA/Ccamlr_zones/Ccamlr_zones.shp") %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/Ccamlr_zones/Ccamlr_zones.shp", layer: "Ccamlr_zones"
+    ## with 4 features
+    ## It has 3 fields
+    ## Integer64 fields read as strings:  id
+
+``` r
+plot(CCAMLR)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+
+``` r
+CCAMLR.df <- spatialpolygons_to_df(CCAMLR)
+
+# 50 km no-take zone around SSI
+NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
+    ## with 1 features
+    ## It has 2 fields
+    ## Integer64 fields read as strings:  Id
+
+``` r
+plot(NoTake_50km)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
+
+``` r
+NoTake_50km.df <- spatialpolygons_to_df(NoTake_50km)
+
+# 50 km no-take zone around SSI trench
+NoTake_Trench50km <- readOGR("MPA/sg_mpa_notake_ssitrench50km/sg_mpa_notake_ssitrench50km.shp") %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssitrench50km/sg_mpa_notake_ssitrench50km.shp", layer: "sg_mpa_notake_ssitrench50km"
+    ## with 1 features
+    ## It has 2 fields
+
+``` r
+plot(NoTake_Trench50km)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-4-4.png)<!-- -->
+
+``` r
+NoTake_Trench50km.df <- spatialpolygons_to_df(NoTake_Trench50km)
+
+# No-take zone south of 60 South
+NoTake_60South <- readOGR("MPA/sg_mpa_notake_s60s/sg_mpa_notake_s60s.shp") %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_s60s/sg_mpa_notake_s60s.shp", layer: "sg_mpa_notake_s60s"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  Id
+
+``` r
+plot(NoTake_60South)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-4-5.png)<!-- -->
+
+``` r
+NoTake_60South.df <- spatialpolygons_to_df(NoTake_60South)
+
+# Pelagic closed areas (just SSI)
+Pelagic_closed <- readOGR("MPA/sg_mpa_pelagic_closed_areas/sg_mpa_pelagic_closed_areas.shp") %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_pelagic_closed_areas/sg_mpa_pelagic_closed_areas.shp", layer: "sg_mpa_pelagic_closed_areas"
+    ## with 9 features
+    ## It has 3 fields
+
+``` r
+plot(Pelagic_closed)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-4-6.png)<!-- -->
+
+``` r
+Pelagic_closed.df <- spatialpolygons_to_df(Pelagic_closed)
+
+# Benthic closed areas (includes SG, not just SSI)
+Benthic_closed <- readOGR("MPA/sg_mpa_benthic_closed_areas/sg_mpa_benthic_closed_areas.shp") %>% 
+  spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_benthic_closed_areas/sg_mpa_benthic_closed_areas.shp", layer: "sg_mpa_benthic_closed_areas"
+    ## with 12 features
+    ## It has 2 fields
+    ## Integer64 fields read as strings:  id
+
+``` r
+plot(Benthic_closed)
+```
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-4-7.png)<!-- -->
+
+``` r
+Benthic_closed.df <- spatialpolygons_to_df(Benthic_closed)
+```
+
 ## 1\. Predict around Saunders to check that the distribution looks ok
 
 This just creates a raster across the study area using the bathymetry
@@ -146,7 +300,7 @@ dist <- gridDistance(mask, origin=2, omit=NA)
 plot(dist, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 #plot(dist, xlim = c(-26.6, -26.2), ylim = c(-57.9, -57.7), col=viridis(100))
@@ -192,7 +346,7 @@ wMeanSST <- stack(c(SST_Jan, SST_Feb)) %>%
 raster::plot(wMeanSST, xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 The low resolution of this data makes the predictions very pixelated.
 Interpolate before making predictions.
@@ -202,7 +356,7 @@ Interpolate before making predictions.
 resample(x = wMeanSST, y = dist, method = 'bilinear') %>% plot(xlim = c(-27.96598, -24.623), ylim = c(-58.41806, -57.28708), col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 # interpolate across entire archipelago
@@ -282,7 +436,7 @@ ggplot() +
                 clip = "on")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 What is the actual distribution of the
 data?
@@ -311,7 +465,7 @@ ggplot() +
   theme(legend.position = "none")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 The actual distribution is pretty close to the predicted distribution.
 
@@ -352,7 +506,7 @@ mask <- mask(SSI_bath_WGS84, SSI_WGS84, inverse=F)
 plot(mask, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ``` r
 # Set all values to 1
@@ -365,7 +519,7 @@ x <- mask(x, SSI_WGS84, inverse=F)
 plot(x, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
 
 ### SST
 
@@ -377,7 +531,7 @@ wMeanSST_resampled <- resample(x = wMeanSST, y = x, method = 'bilinear')
 raster::plot(wMeanSST_resampled, col=viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ### Make a grid with a 1x1km resolution to sample the raster layers
 
@@ -484,7 +638,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Zavodovski")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 ``` r
 colony_code <- "VIS"
@@ -492,7 +646,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Visokoi")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
 
 ``` r
 colony_code <- "CAND"
@@ -500,7 +654,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Candelmas")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-3.png)<!-- -->
 
 ``` r
 colony_code <- "VIND"
@@ -508,7 +662,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Vindication")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-4.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-4.png)<!-- -->
 
 ``` r
 colony_code <- "SAUN"
@@ -516,7 +670,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Saunders")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-5.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-5.png)<!-- -->
 
 ``` r
 colony_code <- "MONT"
@@ -524,7 +678,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Montagu")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-6.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-6.png)<!-- -->
 
 ``` r
 colony_code <- "BRIS"
@@ -532,7 +686,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Bristol")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-7.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-7.png)<!-- -->
 
 ``` r
 colony_code <- "BELL"
@@ -540,7 +694,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Bellingshausen")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-8.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-8.png)<!-- -->
 
 ``` r
 colony_code <- "COOK"
@@ -548,7 +702,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Cook")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-9.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-9.png)<!-- -->
 
 ``` r
 colony_code <- "THUL"
@@ -556,7 +710,7 @@ assign(paste0(colony_code, "_predicted"), single_island_prediction(colony_code))
 plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Thule")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-20-10.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-21-10.png)<!-- -->
 
 ### Predict for all colonies at the same time
 
@@ -574,7 +728,7 @@ dist <- gridDistance(x, origin=2, omit=NA)
 plot(dist, col = viridis(100))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
 
 ``` r
 # sample the distance layers
@@ -596,16 +750,19 @@ r3_df  <- data.frame(r3_pts)
 rm(r3_pts)
 
 ggplot() +
-  geom_raster(data = r3_df , aes(x = x, y = y, fill = layer)) + 
+  geom_tile(data = r3_df , aes(x = x, y = y, fill = layer)) + 
   scale_fill_gradientn(colours=c("#FFFFFFFF","#003366")) +
-  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
+  # geom_polygon(data = Pelagic_closed.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey80") +
+  geom_polygon(data = NoTake_50km.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey40") +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "white", colour = "white") +
   ggtitle(paste0("Probability of occurence around all islands")) +
-  coord_fixed(ratio = 1) +
+  #coord_fixed(ratio = 1) +
+  coord_quickmap() +
   xlab("Longitude") +
   ylab("Latitude")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->
 
 ### Calculate weighted distributions for each island
 
@@ -623,16 +780,16 @@ importance <- function(x) {
   col / cellStats(col, stat = "sum")
 }
 
-ZAV_expected <- importance("ZAV") * 1000000
-VIS_expected <- importance("VIS") * 185000
-CAND_expected <- importance("CAND") * 205000
-VIND_expected <- importance("VIND") * 95000
-SAUN_expected <- importance("SAUN") * 155000
-MONT_expected <- importance("MONT") * 10000
-BRIS_expected <- importance("BRIS") * 15000
-BELL_expected <- importance("BELL") * 36000
-COOK_expected <- importance("COOK") * 1000
-THUL_expected <- importance("THUL") * 100000
+ZAV_expected <- importance("ZAV") * 1000000 # Convey = c. 1 million, Lynch = 600,000
+VIS_expected <- importance("VIS") * 185000 # Lynch
+CAND_expected <- importance("CAND") * 205000 # Lynch
+VIND_expected <- importance("VIND") * 95000 # Lynch
+SAUN_expected <- importance("SAUN") * 155000 # Lynch
+MONT_expected <- importance("MONT") * 10000 # Convey 5000 - 20,000
+BRIS_expected <- importance("BRIS") * 15000 # Convey
+BELL_expected <- importance("BELL") * 36000 # Convey
+COOK_expected <- importance("COOK") * 1000 # Lynch
+THUL_expected <- importance("THUL") * 100000 # Convey
 
 stack <- stack(ZAV_expected, VIS_expected, CAND_expected, VIND_expected, SAUN_expected, MONT_expected, BRIS_expected, BELL_expected, COOK_expected, THUL_expected)
 stack_sum <- calc(stack, sum)
@@ -664,4 +821,26 @@ ggplot() +
   ylab("Latitude")
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
+``` r
+ggplot() +
+  geom_tile(data = stack_sum_df , aes(x = x, y = y, fill = layer)) + 
+  scale_fill_gradientn(colours=c("#FFFFFFFF","#9a004c")) +
+  #geom_polygon(data = Pelagic_closed.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey80") +
+  #geom_polygon(data = Benthic_closed.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey80") +
+  geom_polygon(data = NoTake_50km.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey60") +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
+  ggtitle(paste0("Weighted probability of occurence around all islands")) +
+  labs(fill = "Penguins per km^2") +
+  #coord_fixed() +
+  coord_quickmap() +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  xlim(c(-29, -25)) +
+  ylim(c(-60, -55.5))
+```
+
+    ## Warning: Removed 78172 rows containing missing values (geom_tile).
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
