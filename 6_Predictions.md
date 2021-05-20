@@ -590,6 +590,10 @@ coordinates(colonies) <- ~Long+Lat
 
 ### Make functions to predict the distribution and plot
 
+I’ve added a line to change all distances that are over 100000 to be
+exactly 100000, but this is still allowing the penguins to travel
+further from the colony.
+
 ``` r
 single_island_prediction <- function(colony_name) {
   location <- colonies %>% subset(., str_detect(Colony, colony_name))
@@ -600,6 +604,8 @@ single_island_prediction <- function(colony_name) {
   # sample the distance and SST layers
   All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
   All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
+  # change all distances over 100km to 100km
+  All_1KmPoints[which(All_1KmPoints$colonydist > 100000), "colonydist"] <- 100000
   # Make predictions
   All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
   # change points into LAEA so that it matches the raster
@@ -734,6 +740,10 @@ plot(dist, col = viridis(100))
 # sample the distance layers
 All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
 All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
+
+# change all points over 100km to 100km
+All_1KmPoints[which(All_1KmPoints$colonydist > 100000), "colonydist"] <- 100000
+
 # Make predictions
 All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
 # change points into LAEA 
@@ -780,16 +790,16 @@ importance <- function(x) {
   col / cellStats(col, stat = "sum")
 }
 
-ZAV_expected <- importance("ZAV") * 1000000 # Convey = c. 1 million, Lynch = 600,000
-VIS_expected <- importance("VIS") * 185000 # Lynch
-CAND_expected <- importance("CAND") * 205000 # Lynch
-VIND_expected <- importance("VIND") * 95000 # Lynch
-SAUN_expected <- importance("SAUN") * 155000 # Lynch
-MONT_expected <- importance("MONT") * 10000 # Convey 5000 - 20,000
-BRIS_expected <- importance("BRIS") * 15000 # Convey
-BELL_expected <- importance("BELL") * 36000 # Convey
-COOK_expected <- importance("COOK") * 1000 # Lynch
-THUL_expected <- importance("THUL") * 100000 # Convey
+ZAV_expected <- importance("ZAV") * 1000000 * 2 # Convey = c. 1 million, Lynch = 600,000, double for number of individuals, not pairs
+VIS_expected <- importance("VIS") * 185000 * 2 # Lynch
+CAND_expected <- importance("CAND") * 205000 * 2 # Lynch
+VIND_expected <- importance("VIND") * 95000 * 2 # Lynch
+SAUN_expected <- importance("SAUN") * 155000 *  2# Lynch
+MONT_expected <- importance("MONT") * 10000 * 2 # Convey 5000 - 20,000
+BRIS_expected <- importance("BRIS") * 15000 * 2 # Convey
+BELL_expected <- importance("BELL") * 36000 * 2 # Convey
+COOK_expected <- importance("COOK") * 1000 * 2 # Lynch
+THUL_expected <- importance("THUL") * 100000 * 2 # Convey
 
 stack <- stack(ZAV_expected, VIS_expected, CAND_expected, VIND_expected, SAUN_expected, MONT_expected, BRIS_expected, BELL_expected, COOK_expected, THUL_expected)
 stack_sum <- calc(stack, sum)
@@ -822,6 +832,8 @@ ggplot() +
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
+Plotting with MPA bits and bobs.
 
 ``` r
 ggplot() +
