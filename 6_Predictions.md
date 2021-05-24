@@ -93,12 +93,7 @@ SGSSI_MPA <- readOGR("MPA/SG_MPA/sg_mpa.shp") %>%
     ## Integer64 fields read as strings:  Id
 
 ``` r
-plot(SGSSI_MPA)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
-
-``` r
+#plot(SGSSI_MPA)
 SGSSI_MPA.df <- spatialpolygons_to_df(SGSSI_MPA)
 
 # CCAMLR management areas
@@ -113,12 +108,7 @@ CCAMLR <- readOGR("MPA/Ccamlr_zones/Ccamlr_zones.shp") %>%
     ## Integer64 fields read as strings:  id
 
 ``` r
-plot(CCAMLR)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
-
-``` r
+#plot(CCAMLR)
 CCAMLR.df <- spatialpolygons_to_df(CCAMLR)
 
 # 50 km no-take zone around SSI
@@ -133,12 +123,7 @@ NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>
     ## Integer64 fields read as strings:  Id
 
 ``` r
-plot(NoTake_50km)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
-
-``` r
+#plot(NoTake_50km)
 NoTake_50km.df <- spatialpolygons_to_df(NoTake_50km)
 
 # 50 km no-take zone around SSI trench
@@ -152,12 +137,7 @@ NoTake_Trench50km <- readOGR("MPA/sg_mpa_notake_ssitrench50km/sg_mpa_notake_ssit
     ## It has 2 fields
 
 ``` r
-plot(NoTake_Trench50km)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-4-4.png)<!-- -->
-
-``` r
+#plot(NoTake_Trench50km)
 NoTake_Trench50km.df <- spatialpolygons_to_df(NoTake_Trench50km)
 
 # No-take zone south of 60 South
@@ -172,12 +152,7 @@ NoTake_60South <- readOGR("MPA/sg_mpa_notake_s60s/sg_mpa_notake_s60s.shp") %>%
     ## Integer64 fields read as strings:  Id
 
 ``` r
-plot(NoTake_60South)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-4-5.png)<!-- -->
-
-``` r
+#plot(NoTake_60South)
 NoTake_60South.df <- spatialpolygons_to_df(NoTake_60South)
 
 # Pelagic closed areas (just SSI)
@@ -191,12 +166,7 @@ Pelagic_closed <- readOGR("MPA/sg_mpa_pelagic_closed_areas/sg_mpa_pelagic_closed
     ## It has 3 fields
 
 ``` r
-plot(Pelagic_closed)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-4-6.png)<!-- -->
-
-``` r
+#plot(Pelagic_closed)
 Pelagic_closed.df <- spatialpolygons_to_df(Pelagic_closed)
 
 # Benthic closed areas (includes SG, not just SSI)
@@ -211,12 +181,7 @@ Benthic_closed <- readOGR("MPA/sg_mpa_benthic_closed_areas/sg_mpa_benthic_closed
     ## Integer64 fields read as strings:  id
 
 ``` r
-plot(Benthic_closed)
-```
-
-![](6_Predictions_files/figure-gfm/unnamed-chunk-4-7.png)<!-- -->
-
-``` r
+#plot(Benthic_closed)
 Benthic_closed.df <- spatialpolygons_to_df(Benthic_closed)
 ```
 
@@ -604,10 +569,10 @@ single_island_prediction <- function(colony_name) {
   # sample the distance and SST layers
   All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
   All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
-  # change all distances over 100km to 100km
-  All_1KmPoints[which(All_1KmPoints$colonydist > 100000), "colonydist"] <- 100000
   # Make predictions
   All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
+  # change predictions for points that are more than 100km away to zero, avoiding NAs
+  All_1KmPoints[!is.na(All_1KmPoints$GAM_pred) & All_1KmPoints$colonydist > 100000, "GAM_pred"] <- 0  
   # change points into LAEA so that it matches the raster
   All_1KmPoints <- spTransform(All_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
   # rasterize the predicted values
@@ -741,11 +706,10 @@ plot(dist, col = viridis(100))
 All_1KmPoints$SST <- raster::extract(wMeanSST_resampled, All_1KmPoints)
 All_1KmPoints$colonydist <- raster::extract(dist, All_1KmPoints)
 
-# change all points over 100km to 100km
-All_1KmPoints[which(All_1KmPoints$colonydist > 100000), "colonydist"] <- 100000
-
 # Make predictions
 All_1KmPoints$GAM_pred <- as.numeric(predict(GAM, type="response", newdata = All_1KmPoints))
+# change predictions for points that are more than 100km away to zero, avoiding NAs
+All_1KmPoints[!is.na(All_1KmPoints$GAM_pred) & All_1KmPoints$colonydist > 100000, "GAM_pred"] <- 0
 # change points into LAEA 
 All_1KmPoints <- spTransform(All_1KmPoints, CRS = "+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
 # rasterize the predicted values
@@ -805,12 +769,12 @@ stack <- stack(ZAV_expected, VIS_expected, CAND_expected, VIND_expected, SAUN_ex
 stack_sum <- calc(stack, sum)
 
 #plot(stack_sum, col=viridis(100))
-```
 
-What are the units for the predicted number of penguins? The raster that
-I created to convert the points into a raster has a 1 x 1 km resolution,
-so if I have converted it to WGS84 for plotting, can I still say that
-this is the predicted number of penguins per km^2?
+# cellStats(ZAV_predicted, stat = "sum")
+# cellStats(ZAV_expected, stat = "sum")
+# 
+# plot(ZAV_expected)
+```
 
 Plot weighted distribution.
 
@@ -823,7 +787,7 @@ rm(stack_sum_pts)
 
 ggplot() +
   geom_raster(data = stack_sum_df , aes(x = x, y = y, fill = layer)) + 
-  scale_fill_gradientn(colours=c("#FFFFFFFF","#660033")) +
+  scale_fill_gradientn(colours=c("#FFFFFFFF","#9a004c")) +
   geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
   ggtitle(paste0("Weighted probability of occurence around all islands")) +
   coord_fixed(ratio = 1) +
