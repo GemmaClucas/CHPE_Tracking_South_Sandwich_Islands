@@ -400,7 +400,8 @@ coordinates(colonies) <- ~Long+Lat
 
 ### Make functions to predict the distribution and plot
 
-I've added a line to change all distances that are over 100000 to be exactly 100000, but this is still allowing the penguins to travel further from the colony.
+I've added a line to change predicted probabilities to zero if the distance is greater than 100km from the colony. We know from other studies that chick-provision chinstraps don't forage this far from the colony in general, and only one trip was further than 100km from the colony out of the 388 total chick-rearing trips that we recorded in this study.
+
 ```{r}
 
 single_island_prediction <- function(colony_name) {
@@ -494,7 +495,7 @@ plot_predicted_distribution(get(paste0(colony_code, "_predicted")), "Thule")
 
 ### Predict for all colonies at the same time 
 
-I can't just sum up all the individual raster layers and plot, because the distributions around Thule, Cook, and Bellingshausen overlap so much.
+I can't just sum up all the individual raster layers and plot, because the distributions around Thule, Cook, and Bellingshausen overlap so much -> have to create a combined distance raster for distances from all colonies and predict from this.
 
 ```{r}
 # Find the cells where the colonies are in the raster x
@@ -588,14 +589,14 @@ stack_sum_pts <- rasterToPoints(stack_sum, spatial = TRUE)
 stack_sum_df  <- data.frame(stack_sum_pts)
 rm(stack_sum_pts)
 
-ggplot() +
-  geom_raster(data = stack_sum_df , aes(x = x, y = y, fill = layer)) + 
-  scale_fill_gradientn(colours=c("#FFFFFFFF","#9a004c")) +
-  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
-  ggtitle(paste0("Weighted probability of occurence around all islands")) +
-  coord_fixed(ratio = 1) +
-  xlab("Longitude") +
-  ylab("Latitude")
+# ggplot() +
+#   geom_raster(data = stack_sum_df , aes(x = x, y = y, fill = layer)) + 
+#   scale_fill_gradientn(colours=c("#FFFFFFFF","#9a004c")) +
+#   geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey40") +
+#   ggtitle(paste0("Weighted probability of occurence around all islands")) +
+#   coord_fixed(ratio = 1) +
+#   xlab("Longitude") +
+#   ylab("Latitude")
 ```
 
 
