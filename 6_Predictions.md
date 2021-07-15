@@ -81,35 +81,17 @@ spatialpolygons_to_df <- function(sp) {
   sp.df = plyr::join(sp.points, sp@data, by="id")
 }
 
-# This is the entire extent of the MPA around SG and SSI
-SGSSI_MPA <- readOGR("MPA/SG_MPA/sg_mpa.shp") %>% 
-  spTransform(., crs("+init=epsg:4326"))
-```
+# # This is the entire extent of the MPA around SG and SSI
+# SGSSI_MPA <- readOGR("MPA/SG_MPA/sg_mpa.shp") %>% 
+#   spTransform(., crs("+init=epsg:4326"))
+# #plot(SGSSI_MPA)
+# SGSSI_MPA.df <- spatialpolygons_to_df(SGSSI_MPA)
 
-    ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/SG_MPA/sg_mpa.shp", layer: "sg_mpa"
-    ## with 1 features
-    ## It has 1 fields
-    ## Integer64 fields read as strings:  Id
-
-``` r
-#plot(SGSSI_MPA)
-SGSSI_MPA.df <- spatialpolygons_to_df(SGSSI_MPA)
-
-# CCAMLR management areas
-CCAMLR <- readOGR("MPA/Ccamlr_zones/Ccamlr_zones.shp") %>% 
-  spTransform(., crs("+init=epsg:4326"))
-```
-
-    ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/Ccamlr_zones/Ccamlr_zones.shp", layer: "Ccamlr_zones"
-    ## with 4 features
-    ## It has 3 fields
-    ## Integer64 fields read as strings:  id
-
-``` r
-#plot(CCAMLR)
-CCAMLR.df <- spatialpolygons_to_df(CCAMLR)
+# # CCAMLR management areas
+# CCAMLR <- readOGR("MPA/Ccamlr_zones/Ccamlr_zones.shp") %>% 
+#   spTransform(., crs("+init=epsg:4326"))
+# #plot(CCAMLR)
+# CCAMLR.df <- spatialpolygons_to_df(CCAMLR)
 
 # 50 km no-take zone around SSI
 NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>% 
@@ -126,63 +108,29 @@ NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>
 #plot(NoTake_50km)
 NoTake_50km.df <- spatialpolygons_to_df(NoTake_50km)
 
-# 50 km no-take zone around SSI trench
-NoTake_Trench50km <- readOGR("MPA/sg_mpa_notake_ssitrench50km/sg_mpa_notake_ssitrench50km.shp") %>% 
-  spTransform(., crs("+init=epsg:4326"))
-```
+# # 50 km no-take zone around SSI trench
+# NoTake_Trench50km <- readOGR("MPA/sg_mpa_notake_ssitrench50km/sg_mpa_notake_ssitrench50km.shp") %>% 
+#   spTransform(., crs("+init=epsg:4326"))
+# #plot(NoTake_Trench50km)
+# NoTake_Trench50km.df <- spatialpolygons_to_df(NoTake_Trench50km)
 
-    ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssitrench50km/sg_mpa_notake_ssitrench50km.shp", layer: "sg_mpa_notake_ssitrench50km"
-    ## with 1 features
-    ## It has 2 fields
+# # No-take zone south of 60 South
+# NoTake_60South <- readOGR("MPA/sg_mpa_notake_s60s/sg_mpa_notake_s60s.shp") %>% 
+#   spTransform(., crs("+init=epsg:4326"))
+# #plot(NoTake_60South)
+# NoTake_60South.df <- spatialpolygons_to_df(NoTake_60South)
 
-``` r
-#plot(NoTake_Trench50km)
-NoTake_Trench50km.df <- spatialpolygons_to_df(NoTake_Trench50km)
+# # Pelagic closed areas (just SSI)
+# Pelagic_closed <- readOGR("MPA/sg_mpa_pelagic_closed_areas/sg_mpa_pelagic_closed_areas.shp") %>% 
+#   spTransform(., crs("+init=epsg:4326"))
+# #plot(Pelagic_closed)
+# Pelagic_closed.df <- spatialpolygons_to_df(Pelagic_closed)
 
-# No-take zone south of 60 South
-NoTake_60South <- readOGR("MPA/sg_mpa_notake_s60s/sg_mpa_notake_s60s.shp") %>% 
-  spTransform(., crs("+init=epsg:4326"))
-```
-
-    ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_s60s/sg_mpa_notake_s60s.shp", layer: "sg_mpa_notake_s60s"
-    ## with 1 features
-    ## It has 1 fields
-    ## Integer64 fields read as strings:  Id
-
-``` r
-#plot(NoTake_60South)
-NoTake_60South.df <- spatialpolygons_to_df(NoTake_60South)
-
-# Pelagic closed areas (just SSI)
-Pelagic_closed <- readOGR("MPA/sg_mpa_pelagic_closed_areas/sg_mpa_pelagic_closed_areas.shp") %>% 
-  spTransform(., crs("+init=epsg:4326"))
-```
-
-    ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_pelagic_closed_areas/sg_mpa_pelagic_closed_areas.shp", layer: "sg_mpa_pelagic_closed_areas"
-    ## with 9 features
-    ## It has 3 fields
-
-``` r
-#plot(Pelagic_closed)
-Pelagic_closed.df <- spatialpolygons_to_df(Pelagic_closed)
-
-# Benthic closed areas (includes SG, not just SSI)
-Benthic_closed <- readOGR("MPA/sg_mpa_benthic_closed_areas/sg_mpa_benthic_closed_areas.shp") %>% 
-  spTransform(., crs("+init=epsg:4326"))
-```
-
-    ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_benthic_closed_areas/sg_mpa_benthic_closed_areas.shp", layer: "sg_mpa_benthic_closed_areas"
-    ## with 12 features
-    ## It has 2 fields
-    ## Integer64 fields read as strings:  id
-
-``` r
-#plot(Benthic_closed)
-Benthic_closed.df <- spatialpolygons_to_df(Benthic_closed)
+# # Benthic closed areas (includes SG, not just SSI)
+# Benthic_closed <- readOGR("MPA/sg_mpa_benthic_closed_areas/sg_mpa_benthic_closed_areas.shp") %>% 
+#   spTransform(., crs("+init=epsg:4326"))
+# #plot(Benthic_closed)
+# Benthic_closed.df <- spatialpolygons_to_df(Benthic_closed)
 ```
 
 ## 1\. Predict around Saunders to check that the distribution looks ok
@@ -442,7 +390,7 @@ starting point.
 ``` r
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
-  crop(., c(-30, -25, -60, -55))
+  crop(., c(-29, -25, -60, -55.75))
 
 # Read in shapefile for land
 SSI_WGS84 <- readOGR("Seamask.shp") %>% 
@@ -509,13 +457,13 @@ projectRaster(wMeanSST_resampled, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +u
 ```
 
     ## class      : RasterLayer 
-    ## dimensions : 2827, 1563, 4418601  (nrow, ncol, ncell)
-    ## resolution : 206, 200  (x, y)
-    ## extent     : -256872, 65105.97, -230376.5, 335023.5  (xmin, xmax, ymin, ymax)
+    ## dimensions : 2395, 1242, 2974590  (nrow, ncol, ncell)
+    ## resolution : 204, 200  (x, y)
+    ## extent     : -189433.8, 63934.23, -227522.8, 251477.2  (xmin, xmax, ymin, ymax)
     ## crs        : +proj=laea +lon_0=-26 +lat_0=-58 +units=m +ellps=WGS84 
     ## source     : memory
     ## names      : layer 
-    ## values     : 0.699416, 3.820712  (min, max)
+    ## values     : 0.6992419, 3.332532  (min, max)
 
 ``` r
 long <- seq(-256872 , 65105.97, 1000) #first minimum longitude in m, then max, 1000 is 1km
@@ -602,6 +550,8 @@ plot_predicted_distribution <- function(raster, colony_name) {
 ```
 
 ### Run for each colony
+
+Plots turned off for now to reduce run time.
 
 ``` r
 # colony_codes <- c("CAND", "BRIS")
@@ -742,6 +692,51 @@ ggplot() +
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->
 
+With contour lines
+
+``` r
+marmap_dat <- marmap::as.bathy(mask)
+```
+
+    ## Registered S3 methods overwritten by 'adehabitatMA':
+    ##   method                       from
+    ##   print.SpatialPixelsDataFrame sp  
+    ##   print.SpatialPixels          sp
+
+``` r
+autoplot(marmap_dat, geom=c("contour"), coast = FALSE, colour="grey50", size=0.1) + 
+  ylab("Latitude") +
+  xlab("Longitude") +
+  geom_tile(data = r3_df , aes(x = x, y = y, fill = layer)) + 
+  scale_fill_gradientn(colours=c("#47897800","#478978FF"), 
+                       breaks = c(0.0, 0.25, 0.5, 0.75, 1.0), 
+                       labels = c(0.0, 0.25, 0.5, 0.75, 1.0)) +
+  # scale_fill_gradientn(colours=c("#00336600","#0033668A")) +
+  geom_polygon(data = NoTake_50km.df %>% filter(hole == FALSE), 
+               aes(x = long, y = lat, group = group), fill = NA, colour = "#EE7674", linetype = "twodash") +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey30", colour = "grey30") +
+  #ggtitle(paste0("Probability of occurrence around all islands")) +
+  labs(fill = "Probability of occurrence") +
+  #coord_fixed() +
+  coord_quickmap() +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme(panel.background = element_rect(fill = "white", colour = "grey30"))
+```
+
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+
+    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+
+``` r
+ggsave(filename = "Figures/Figure4a_PofOccurrence.pdf", dpi = 300, device = "pdf",
+       height = 5, width = 5, units = "in")
+```
+
+    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
+
 ### Calculate weighted distributions for each island
 
 This uses the single island predicted distributions calculated above.
@@ -758,7 +753,7 @@ importance <- function(x) {
   col / cellStats(col, stat = "sum")
 }
 
-ZAV_expected <- importance("ZAV") * 1000000 * 2 # Convey = c. 1 million, Lynch = 600,000, double for number of individuals, not pairs
+ZAV_expected <- importance("ZAV") * 600000 * 2 # Convey = c. 1 million, Lynch = 600,000, double for number of individuals, not pairs
 VIS_expected <- importance("VIS") * 185000 * 2 # Lynch
 CAND_expected <- importance("CAND") * 205000 * 2 # Lynch
 VIND_expected <- importance("VIND") * 95000 * 2 # Lynch
@@ -804,7 +799,7 @@ Plotting with MPA bits and bobs.
 ``` r
 ggplot() +
   geom_tile(data = stack_sum_df , aes(x = x, y = y, fill = layer)) + 
-  scale_fill_gradientn(colours=c("#FFFFFFFF","#9a004c")) +
+  scale_fill_gradientn(colours=c("#FFFFFFFF","#8B95C9")) +
   #geom_polygon(data = Pelagic_closed.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey80") +
   #geom_polygon(data = Benthic_closed.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey80") +
   geom_polygon(data = NoTake_50km.df, aes(x = long, y = lat, group = group), fill = NA, colour = "grey60") +
@@ -819,6 +814,37 @@ ggplot() +
   ylim(c(-60, -55.5))
 ```
 
-    ## Warning: Removed 78172 rows containing missing values (geom_tile).
+![](6_Predictions_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+``` r
+autoplot(marmap_dat, geom=c("contour"), coast = FALSE, colour="grey50", size=0.1) +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  geom_tile(data = stack_sum_df, aes(x = x, y = y, fill = layer)) +
+  scale_fill_gradientn(colours=c("#8B95C900","#8B95C9FF")) +
+  # scale_fill_gradientn(colours=c("#00336600","#0033668A")) +
+  geom_polygon(data = NoTake_50km.df %>% filter(hole == FALSE), 
+               aes(x = long, y = lat, group = group), fill = NA, colour = "#EE7674",
+               linetype = "twodash") +
+  geom_polygon(data = SSI_polygons.df, aes(x = long, y = lat, group = group), fill = "grey30", colour = "grey30") +
+  #ggtitle(paste0("Probability of occurrence around all islands")) +
+  labs(fill = "Penguins per km^2") +
+  #coord_fixed() +
+  coord_quickmap() +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme(panel.background = element_rect(fill = "white", colour = "grey30"))
+```
+
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+
+    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+
+``` r
+ggsave(filename = "Figures/Figure4a_WeightedPofOccurrence.pdf", dpi = 300, device = "pdf",
+       height = 5, width = 5, units = "in")
+```
+
+    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
