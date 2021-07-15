@@ -296,7 +296,13 @@ The increase in the AUC is only very marginal when adding a third covariate -> s
 ```{r}
 GAM <- gam(pres ~ s(colonydist, k = 3) + s(SST, k = 6), data=data, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')
 summary(GAM)
-#gratia::draw(GAM, residuals = TRUE)
+options(scipen = 999)
+gratia::draw(GAM, residuals = TRUE)
+gratia::draw(GAM, residuals = FALSE)
+
+# ggsave(filename = "Figures/CovariateEffects.pdf", dpi = 300, device = "pdf",
+#       height = 3.5, width = 7, units = "in")
+
 ```
 
 ```{r}
