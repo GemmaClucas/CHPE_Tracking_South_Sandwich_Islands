@@ -201,6 +201,8 @@ kde <- sp.kde(All, bw = 0.01,
               nc = 50,
               standardize = TRUE)
 
+#kde <- sp.kde(All)
+
 ggplot(data = as.data.frame(kde, xy = TRUE), aes(x=x, y=y)) +
   geom_contour_fill(aes(z = kde)) +
   #scale_fill_gradient(low = "yellow", high = "red") +
@@ -931,30 +933,30 @@ background %>%
     ## ------------------------------------------------------------------------------------
     ## depth         |    colonydist | -0.68 | [-0.68, -0.67] | -270.39 | 86732 | < .001***
     ## depth         |     shelfdist | -0.80 | [-0.80, -0.79] | -387.30 | 86732 | < .001***
-    ## depth         |         slope |  0.54 | [ 0.53,  0.54] |  186.20 | 86254 | < .001***
+    ## depth         |         slope |  0.54 | [ 0.53,  0.54] |  186.10 | 86254 | < .001***
     ## depth         |           SST | -0.23 | [-0.24, -0.22] |  -69.52 | 86429 | < .001***
     ## depth         |        Height |  0.21 | [ 0.20,  0.21] |   62.40 | 86429 | < .001***
     ## depth         | NorthVelocity |  0.35 | [ 0.34,  0.35] |  109.40 | 86429 | < .001***
     ## depth         |  EastVelocity | -0.35 | [-0.36, -0.34] | -109.68 | 86429 | < .001***
     ## depth         |        chlorA |  0.41 | [ 0.41,  0.42] |  133.47 | 86732 | < .001***
     ## colonydist    |     shelfdist |  0.78 | [ 0.78,  0.78] |  370.01 | 86732 | < .001***
-    ## colonydist    |         slope | -0.31 | [-0.31, -0.30] |  -95.31 | 86254 | < .001***
+    ## colonydist    |         slope | -0.31 | [-0.31, -0.30] |  -95.22 | 86254 | < .001***
     ## colonydist    |           SST |  0.26 | [ 0.25,  0.26] |   78.49 | 86429 | < .001***
     ## colonydist    |        Height | -0.10 | [-0.11, -0.09] |  -29.40 | 86429 | < .001***
     ## colonydist    | NorthVelocity | -0.36 | [-0.37, -0.35] | -113.32 | 86429 | < .001***
     ## colonydist    |  EastVelocity |  0.18 | [ 0.17,  0.18] |   52.50 | 86429 | < .001***
     ## colonydist    |        chlorA | -0.22 | [-0.22, -0.21] |  -65.92 | 86732 | < .001***
-    ## shelfdist     |         slope | -0.28 | [-0.29, -0.28] |  -86.15 | 86254 | < .001***
+    ## shelfdist     |         slope | -0.28 | [-0.29, -0.28] |  -86.05 | 86254 | < .001***
     ## shelfdist     |           SST |  0.13 | [ 0.12,  0.13] |   37.18 | 86429 | < .001***
     ## shelfdist     |        Height | -0.44 | [-0.45, -0.44] | -145.01 | 86429 | < .001***
     ## shelfdist     | NorthVelocity | -0.35 | [-0.36, -0.35] | -111.17 | 86429 | < .001***
     ## shelfdist     |  EastVelocity |  0.29 | [ 0.28,  0.29] |   87.76 | 86429 | < .001***
     ## shelfdist     |        chlorA | -0.18 | [-0.18, -0.17] |  -53.19 | 86732 | < .001***
-    ## slope         |           SST | -0.09 | [-0.09, -0.08] |  -25.11 | 85962 | < .001***
-    ## slope         |        Height | -0.03 | [-0.04, -0.03] |   -9.53 | 85962 | < .001***
-    ## slope         | NorthVelocity |  0.19 | [ 0.18,  0.19] |   56.21 | 85962 | < .001***
-    ## slope         |  EastVelocity | -0.06 | [-0.07, -0.06] |  -18.48 | 85962 | < .001***
-    ## slope         |        chlorA |  0.18 | [ 0.18,  0.19] |   55.23 | 86254 | < .001***
+    ## slope         |           SST | -0.08 | [-0.09, -0.08] |  -24.94 | 85962 | < .001***
+    ## slope         |        Height | -0.03 | [-0.04, -0.03] |   -9.46 | 85962 | < .001***
+    ## slope         | NorthVelocity |  0.19 | [ 0.18,  0.19] |   56.20 | 85962 | < .001***
+    ## slope         |  EastVelocity | -0.06 | [-0.07, -0.06] |  -18.50 | 85962 | < .001***
+    ## slope         |        chlorA |  0.18 | [ 0.18,  0.19] |   55.12 | 86254 | < .001***
     ## SST           |        Height |  0.68 | [ 0.68,  0.69] |  275.57 | 86429 | < .001***
     ## SST           | NorthVelocity | -0.56 | [-0.57, -0.56] | -199.29 | 86429 | < .001***
     ## SST           |  EastVelocity |  0.51 | [ 0.51,  0.52] |  174.87 | 86429 | < .001***
@@ -985,16 +987,11 @@ background %>%
 
 ![](4_Environmental_Data_files/figure-gfm/unnamed-chunk-47-1.png)<!-- -->
 
-While all are significantly correlated with one another, the varibles
-with correlation coefficient \>|0.7| (or close to that value) are:
+While all are significantly correlated with one another, the covariates
+with correlation coefficient \>|0.7| are:
 
-1.  Depth and distance to the colony (-0.68)
-2.  Depth and distance to the shelf break (-0.8)
-3.  Distance to the shelf break and distance to the colony (0.78)
-4.  SST and sea surface height (0.68)
+1.  Depth and distance to the shelf break (-0.8)
+2.  Distance to the shelf break and distance to the colony (0.78)
 
-So I need to evaluate which one improves model perfermance the most out
-of depth, distance to the colony, and distance to the shelf break, and
-just include that one.
-
-And for SST vs sea surface height, I could do the same, or just use SST.
+So if I drop distance to the shelf break, then I can keep depth and
+distance to the colony.
