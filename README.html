@@ -351,14 +351,16 @@ pre code {
 </div>
 
 
-<div id="chpe_tracking_south_sandwich_islands" class="section level1">
-<h1>CHPE_Tracking_South_Sandwich_Islands</h1>
-<p>Steps taken in the analysis of this dataset:</p>
+<div id="chinstrap-penguin-tracking-on-the-south-sandwich-islands" class="section level1">
+<h1>Chinstrap penguin tracking on the South Sandwich Islands</h1>
+<p>Steps taken in the analysis of this dataset (come back here to follow the steps):</p>
 <ol style="list-style-type: decimal">
 <li><p>Crawl the tracks of each penguin using the <code>crawl</code> package in the script <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/1a_Crawl_each_penguin.md">1a_Crawl_each_penguin</a>. A more fully annotated version of the code can be found in <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/1_Initial_processing_with_Crawl.md">1_inital_processing_with_Crawl</a>.</p></li>
 <li><p>Split into separate foraging trips using <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/2_split_into_trips.md">2_split_into_trips</a>. This code also removes duff trips and incorrectly inferred long periods of low speed movement (when the penguin was actually at the colony or when there is a long gap between fixes at sea). I also made animations of the tracks using <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/Animate_tracks.md">Animate_tracks</a> which show some of these low speed movements.</p></li>
 <li><p>Restrict the analyses to the chick-rearing period by plotting the maximum distance from the colony for each trip, and removing trips that are clearly outliers i.e. pre-moult trips when the bird suddenly goes much further from the colony. This is in <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/3_Restrict_to-chick-rearing_period.md">3_Restrict_to_chick-rearing_period</a>.</p></li>
 <li><p>Gather environmental variables (depth, distance to colony, distance to shelf break, slope, SST, sea surface height anomoly etc etc) for the study region and sample these for all points in the dataset. I also sample at a randon set of locations across the study area, to create the background data. See <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/4_Environmental_Data.md">4_Environmental_Data</a> for details.</p></li>
+<li><p>Run the GAMs and evaluate the models. See <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/5_GAMs.md">5_GAMs</a>.</p></li>
+<li><p>Make predictions from the final models and do some plots. See <a href="https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/6_Predictions.md">6_Predictions</a>.</p></li>
 </ol>
 </div>
 
