@@ -1,27 +1,15 @@
----
-title: "Maps"
-author: "Gemma Clucas"
-date: "6/7/2021"
-output: github_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(viridis)
-library(raster)
-library(tidyverse)
-library(rgdal)
-library(marmap)
-library(ggsn)
-library(rgeos)
-```
+Maps
+================
+Gemma Clucas
+6/7/2021
 
 # Map of study area (Figure 1)
 
 ## All islands
 
 Read in bathymetry data.
-```{r}
+
+``` r
 SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>% 
   projectRaster(., crs=crs("+init=epsg:4326")) %>% 
   crop(., c(-35, -20, -65, -50))
@@ -30,18 +18,37 @@ SSI_bath_WGS84 <- raster("ssi_geotif/full_ssi18a.tif") %>%
 # Plot to check
 #plot(SSI_bath_WGS84, col=viridis(100, option = "mako"))
 ```
-Note this has the elevation of the island -> must remove before making into bathymtery plot.
 
+Note this has the elevation of the island -\> must remove before making
+into bathymtery plot.
 
 These are the polygons for the coastline.
-```{r}
+
+``` r
 SSI_WGS84 <- readOGR("Seamask.shp")
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## with 1 features
+    ## It has 1 fields
+
+``` r
 SSI_polygons <- crop(SSI_WGS84, c(450000, 1095192, -695043.9, -100000)) %>% 
   spTransform(., crs("+init=epsg:4326"))
 ```
 
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
+    ## intersection at or near point 77954.359424359995 26605.230663620001
+
+    ## x[i, ] is invalid
+
+    ## Warning in rgeos::gIntersection(x[i, ], y, byid = TRUE, drop_lower_td = TRUE):
+    ## Invalid objects found; consider using set_RGEOS_CheckValidity(2L)
+
 Function to convert SpatialPolygonsDataFrame to regular dataframe.
-```{r}
+
+``` r
 spatialpolygons_to_df <- function(sp) {
   sp@data$id = rownames(sp@data)
   sp.points = fortify(sp, region="id")
@@ -50,7 +57,8 @@ spatialpolygons_to_df <- function(sp) {
 ```
 
 Convert and plot.
-```{r}
+
+``` r
 SSI_polygons.df <- spatialpolygons_to_df(SSI_polygons)
 
 # filter out only the polygons for the islands
@@ -68,15 +76,14 @@ SSI_polygons.df <- SSI_polygons.df %>% filter(hole == TRUE)
 #         panel.background = element_rect(fill = "aliceblue"))
 ```
 
-
-
-
 # MPA boundaries
 
-These are all individual shape files that I have downloaded from [here](https://add.data.bas.ac.uk/repository/entry/show?entryid=7f3136e7-8b50-4909-bb82-f4223a4f9768). There is a useful [viewer](https://sggis.gov.gs/) too.
-They are in some weird projection so I am converting all to WGS84 before plotting.
+These are all individual shape files that I have downloaded from
+[here](https://add.data.bas.ac.uk/repository/entry/show?entryid=7f3136e7-8b50-4909-bb82-f4223a4f9768).
+There is a useful [viewer](https://sggis.gov.gs/) too. They are in some
+weird projection so I am converting all to WGS84 before plotting.
 
-```{r}
+``` r
 # # This is the entire extent of the MPA around SG and SSI
 # SGSSI_MPA <- readOGR("MPA/SG_MPA/sg_mpa.shp") %>% 
 #   spTransform(., crs("+init=epsg:4326"))
@@ -86,12 +93,30 @@ They are in some weird projection so I am converting all to WGS84 before plottin
 # # CCAMLR management areas
 CCAMLR <- readOGR("MPA/Ccamlr_zones/Ccamlr_zones.shp") %>%
   spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/Ccamlr_zones/Ccamlr_zones.shp", layer: "Ccamlr_zones"
+    ## with 4 features
+    ## It has 3 fields
+    ## Integer64 fields read as strings:  id
+
+``` r
 #plot(CCAMLR)
 CCAMLR.df <- spatialpolygons_to_df(CCAMLR)
 
 # 50 km no-take zone around SSI
 NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>% 
   spTransform(., crs("+init=epsg:4326"))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
+    ## with 1 features
+    ## It has 2 fields
+    ## Integer64 fields read as strings:  Id
+
+``` r
 #plot(NoTake_50km)
 NoTake_50km.df <- spatialpolygons_to_df(NoTake_50km)
 
@@ -124,15 +149,31 @@ CCAMLR2 <- readOGR("MPA/asd-shapefile-WGS84/asd-shapefile-WGS84.shp") %>%
   spTransform(., crs("+init=epsg:4326")) %>% 
   gBuffer(., byid=TRUE, width=0) %>%  # I was getting an error here about bad polygons, this is a hack to solve it
   crop(., c(-75, -20, -65, -50))
-plot(CCAMLR2)
-CCAMLR2.df <- spatialpolygons_to_df(CCAMLR2)
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/asd-shapefile-WGS84/asd-shapefile-WGS84.shp", layer: "asd-shapefile-WGS84"
+    ## with 19 features
+    ## It has 13 fields
+
+    ## Warning in gBuffer(., byid = TRUE, width = 0): Spatial object is not projected;
+    ## GEOS expects planar coordinates
+
+``` r
+plot(CCAMLR2)
+```
+
+![](Maps_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+``` r
+CCAMLR2.df <- spatialpolygons_to_df(CCAMLR2)
 ```
 
 ## Figure 1, Panel B Sea ice
 
 Plot the islands with the bathymetry. MPA stuff off for now.
-```{r}
+
+``` r
 # Use mask() to cut out land from the bathymetry raster
 bathy_mask <- mask(SSI_bath_WGS84, SSI_WGS84, inverse=F) %>% 
   crop(., c(-29, -25, -60, -56))
@@ -151,37 +192,93 @@ June_ice <- readOGR("Sea ice medians/median_extent_S_06_1981-2010_polyline_v3.0.
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-29, -25, -60, -56)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_06_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_06_1981-2010_polyline_v3.0"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  FID
+
+``` r
 July_ice <- readOGR("Sea ice medians/median_extent_S_07_1981-2010_polyline_v3.0.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-29, -25, -60, -56)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_07_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_07_1981-2010_polyline_v3.0"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  FID
+
+``` r
 August_ice <- readOGR("Sea ice medians/median_extent_S_08_1981-2010_polyline_v3.0.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-29, -25, -60, -56)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_08_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_08_1981-2010_polyline_v3.0"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  FID
+
+``` r
 September_ice <- readOGR("Sea ice medians/median_extent_S_09_1981-2010_polyline_v3.0.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-29, -25, -60, -56)) %>% 
   spatialpolygons_to_df()
-  
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_09_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_09_1981-2010_polyline_v3.0"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  FID
+
+``` r
 October_ice <- readOGR("Sea ice medians/median_extent_S_10_1981-2010_polyline_v3.0.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-29, -25, -60, -56)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_10_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_10_1981-2010_polyline_v3.0"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  FID
+
+``` r
 November_ice <- readOGR("Sea ice medians/median_extent_S_11_1981-2010_polyline_v3.0.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-29, -25, -60, -56)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_11_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_11_1981-2010_polyline_v3.0"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  FID
+
+``` r
 December_ice <- readOGR("Sea ice medians/median_extent_S_12_1981-2010_polyline_v3.0.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-29, -25, -60, -56)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_12_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_12_1981-2010_polyline_v3.0"
+    ## with 1 features
+    ## It has 1 fields
+    ## Integer64 fields read as strings:  FID
+
+``` r
 # January_ice <- readOGR("Sea ice medians/median_extent_S_01_1981-2010_polyline_v3.0.shp") %>% 
 #   spTransform(., crs("+init=epsg:4326")) %>% 
 #   crop(., c(-29, -25, -60, -56)) %>% 
@@ -214,20 +311,25 @@ autoplot(dat, geom=c("raster"), coast = FALSE) +
                  dist = 50, height=0.02, dist_unit = "km", transform = TRUE, model = "WGS84",
                  box.fill = c("grey40", "white"), st.color = "grey40", box.color = "grey40",
                  anchor = c(x = -25.2, y = -56.15), st.size = 3, st.dist = 0.03)
+```
+
+![](Maps_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
   # xlim(c(-29, -25)) +
   # ylim(c(-60, -55.5)) +
   # theme(panel.background = element_rect(fill = "white", colour = "grey60")) 
 
 # ggsave(filename = "Figures/Figure1_panel2.pdf", dpi = 300, device = "pdf",
 #       height = 3.5, width = 3.5, units = "in")
-  
 ```
 
-Adding text labels to the map seems to take forever, so I'll have to manually add them.
-
+Adding text labels to the map seems to take forever, so I’ll have to
+manually add them.
 
 Tweaking the map for Tom, to make the scale bar look better
-```{r}
+
+``` r
 autoplot(dat, geom=c("raster"), coast = FALSE) + 
   scale_fill_gradient(low = "steelblue4", high = "lightblue") +
   geom_polygon(data = SSI_polygons.df, 
@@ -253,15 +355,18 @@ autoplot(dat, geom=c("raster"), coast = FALSE) +
                  box.fill = c("grey30", "white"), st.color = "grey30", box.color = "grey30",
                  anchor = c(x = -25.4, y = -56.15), st.size = 2.5, st.dist = 0.03) +
   theme(text=element_text(size=10))
+```
 
+![](Maps_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+``` r
 # ggsave(filename = "Figures/SSI_for_Tom.pdf", dpi = 300, device = "pdf",
 #       height = 5, width = 3.5, units = "in")
 ```
 
-
 ## Larger map using ggOceanMaps
 
-```{r}
+``` r
 # library(ggOceanMaps)
 # 
 # dt <- data.frame(lon = c(-40, -40, -20, -20), lat = c(-65, -50, -50, -65))
@@ -280,26 +385,43 @@ autoplot(dat, geom=c("raster"), coast = FALSE) +
 # basemap(-60, bathymetry = TRUE, glaciers = TRUE)
 ```
 
-I'm not sure I can control the colours with this map that well, so perhaps I should use marmap instead. 
+I’m not sure I can control the colours with this map that well, so
+perhaps I should use marmap instead.
 
 ## Figure 1, panel A
 
-```{r}
-
+``` r
 # This should load next time from a saved matrix
 papoue <- getNOAA.bathy(lon1 = -75.00, lon2 = -20.00, lat1 = -65.00, lat2 = -50.00, resolution = 1.00, keep = TRUE)
-
 ```
 
+    ## File already exists ; loading 'marmap_coord_-75;-65;-20;-50_res_1.csv'
 
+For this I think I need a coastlines shapefile so that I can plot them
+as a separate layer, rather than relying on marmap, which plots empty
+coasts.
 
-For this I think I need a coastlines shapefile so that I can plot them as a separate layer, rather than relying on marmap, which plots empty coasts.
-```{r}
+``` r
 # get the coastline polygons but don't crop out SG this time
 SGSSI_WGS84.df <- readOGR("Seamask.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## with 1 features
+    ## It has 1 fields
+
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
+    ## intersection at or near point -35.789159179999999 -54.754994570000001
+
+    ## SpP is invalid
+
+    ## Warning in rgeos::gUnaryUnion(spgeom = SpP, id = IDs): Invalid objects found;
+    ## consider using set_RGEOS_CheckValidity(2L)
+
+``` r
 # filter out only the polygons for the islands
 SGSSI_WGS84.df  <- SGSSI_WGS84.df  %>% filter(hole == TRUE)
 
@@ -308,18 +430,30 @@ world_coasts <- readOGR("ne_10m_coastline/ne_10m_coastline.shp") %>%
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-75, -20, -65, -50)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/ne_10m_coastline/ne_10m_coastline.shp", layer: "ne_10m_coastline"
+    ## with 4133 features
+    ## It has 3 fields
+    ## Integer64 fields read as strings:  scalerank
+
+``` r
 # fronts shapefile
 fronts <- readOGR("Fronts/all_fronts.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-75, -20, -65, -50)) %>% 
   spatialpolygons_to_df()
-
 ```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Fronts/all_fronts.shp", layer: "all_fronts"
+    ## with 7 features
+    ## It has 3 fields
 
 Plot.
-```{r}
+
+``` r
 papoue[papoue > 0] <- NA
 
 autoplot(papoue, geom=c("raster"), coast = FALSE) + 
@@ -339,6 +473,11 @@ autoplot(papoue, geom=c("raster"), coast = FALSE) +
                  dist = 200, height=0.015, dist_unit = "km", transform = TRUE, model = "WGS84",
                  box.fill = c("grey40", "white"), st.color = "grey40", box.color = "grey40",
                  anchor = c(x = -25, y = -64.15), st.size = 2, st.dist = 0.03)
+```
+
+![](Maps_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+``` r
   #theme(legend.position = "none")
 
 # ggsave(filename = "Figures/Figure1_panel1.pdf", dpi = 300, device = "pdf",
@@ -352,16 +491,23 @@ autoplot(papoue, geom=c("raster"), coast = FALSE) +
 # SAF = 6 1
 ```
 
-
 ## Figure 1, Panel C
 
-```{r}
+``` r
 # I downloaded the contour for SSI from the South Georgia GIS website
 SSI_contours.df <- readOGR("Ssi_contours/Ssi_contours.shp") %>% 
   spTransform(., crs("+init=epsg:4326")) %>% 
   crop(., c(-27, -26, -58, -57.5)) %>% 
   spatialpolygons_to_df()
+```
 
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Ssi_contours/Ssi_contours.shp", layer: "Ssi_contours"
+    ## with 177 features
+    ## It has 4 fields
+    ## Integer64 fields read as strings:  id index100
+
+``` r
 # crop the bathymetry to just the area around Saunders
 Saunders_bathy_mask <- bathy_mask  %>%  crop(., c(-26.6, -26.35, -57.85, -57.75))
 Saunders_bathy <- marmap::as.bathy(Saunders_bathy_mask)
@@ -392,6 +538,16 @@ Saunders_polygon.df <- Saunders_polygon.df %>% filter(hole == TRUE)
 # 
 
 library(metR)
+```
+
+    ## 
+    ## Attaching package: 'metR'
+
+    ## The following object is masked from 'package:purrr':
+    ## 
+    ##     cross
+
+``` r
 # add depth contours
 autoplot(Saunders_bathy, geom=c("raster"), coast = FALSE) + 
   scale_fill_gradient(low = "steelblue4", high = "lightblue") +
@@ -421,18 +577,18 @@ autoplot(Saunders_bathy, geom=c("raster"), coast = FALSE) +
                  dist = 1, height=0.02, dist_unit = "km", transform = TRUE, model = "WGS84",
                  box.fill = c("grey40", "white"), st.color = "grey40", box.color = "grey40",
                  anchor = c(x = -26.365, y = -57.755), st.size = 3, st.dist = 0.03)
-
-# ggsave(filename = "Figures/Figure1_panel3.pdf", dpi = 300, device = "pdf",
-#        height = 3.5, width = 6, units = "in")
-
-
-
 ```
 
+![](Maps_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+
+``` r
+# ggsave(filename = "Figures/Figure1_panel3.pdf", dpi = 300, device = "pdf",
+#        height = 3.5, width = 6, units = "in")
+```
 
 ## Figure 2 - Actual tracking data
 
-```{r}
+``` r
 All <- read.csv("Chick-rearing_trips/All_chick-rearing_trips.csv", stringsAsFactors = FALSE)
 # Keep one version as a dataframe
 All.df <- All
@@ -442,8 +598,15 @@ proj4string(All) <- CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m")
 # Reproject to WGS84
 All <- spTransform(All, CRS = CRS("+proj=longlat +ellps=WGS84"))
 extent(All)
+```
 
+    ## class      : Extent 
+    ## xmin       : -27.96598 
+    ## xmax       : -24.623 
+    ## ymin       : -58.41806 
+    ## ymax       : -57.28708
 
+``` r
 # Grab the bathymetry data
 bathy_mask <- mask(SSI_bath_WGS84, SSI_WGS84, inverse=F) %>% 
   crop(., c(-29, -24, -60, -56))
@@ -465,6 +628,15 @@ NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>
   spTransform(., crs("+init=epsg:4326")) %>% 
   # crop(., c(-27.96598 , -24.623 , -58.41806 , -57.28708 ))
   crop(., c(-28 , -24.6 , -58.5 , -57.25 ))
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
+    ## with 1 features
+    ## It has 2 fields
+    ## Integer64 fields read as strings:  Id
+
+``` r
 #plot(NoTake_50km)
 NoTake_50km.df <- spatialpolygons_to_df(NoTake_50km)
 
@@ -503,6 +675,15 @@ autoplot(fig2_bathy, geom=c("raster"), coast = FALSE, colour="white", size=0.1) 
                  dist = 25, height=0.02, dist_unit = "km", transform = TRUE, model = "WGS84",
                  box.fill = c("grey40", "white"), st.color = "grey40", box.color = "grey40",
                  anchor = c(x = -24.8, y = -57.35), st.size = 3, st.dist = 0.05)
+```
+
+    ## Warning: Ignoring unknown parameters: colour, size
+
+    ## Warning: Ignoring unknown parameters: fill
+
+![](Maps_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+``` r
   # stat_density2d(data = as.data.frame(All),
   #                aes(x = LON, y = LAT, alpha = ..level..), 
   #                geom = "polygon", 
@@ -516,4 +697,5 @@ autoplot(fig2_bathy, geom=c("raster"), coast = FALSE, colour="white", size=0.1) 
 # 
 ```
 
-I can't figure out a way not to get the lines at the top and bottom of the NTZ so just crop them out manually afterwards.
+I can’t figure out a way not to get the lines at the top and bottom of
+the NTZ so just crop them out manually afterwards.
