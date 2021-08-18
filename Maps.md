@@ -43,8 +43,7 @@ SSI_polygons <- crop(SSI_WGS84, c(450000, 1095192, -695043.9, -100000)) %>%
 
     ## x[i, ] is invalid
 
-    ## Warning in rgeos::gIntersection(x[i, ], y, byid = TRUE, drop_lower_td = TRUE):
-    ## Invalid objects found; consider using set_RGEOS_CheckValidity(2L)
+    ## Attempting to make x[i, ] valid by zero-width buffering
 
 Function to convert SpatialPolygonsDataFrame to regular dataframe.
 
@@ -491,6 +490,47 @@ autoplot(papoue, geom=c("raster"), coast = FALSE) +
 # SAF = 6 1
 ```
 
+## Inset Map for Tom
+
+Playing around with
+[SOmap](https://australianantarcticdivision.github.io/SOmap/articles/SOmap-introduction.html)
+
+``` r
+#remotes::install_github("AustralianAntarcticDivision/SOmap")
+library(SOmap)
+## also define a colour map to use for some examples
+my_cmap <- colorRampPalette(c("#4D4140", "#596F7E", "#168B98", "#ED5B67",
+                              "#E27766", "#DAAD50", "#EAC3A6"))(51)
+base_map <- SOmap(trim = -50) ## plot to 40S
+```
+
+    ## old-style crs object detected; please recreate object with a recent sf::st_crs()
+    ## old-style crs object detected; please recreate object with a recent sf::st_crs()
+    ## old-style crs object detected; please recreate object with a recent sf::st_crs()
+
+``` r
+plot(base_map)
+```
+
+![](Maps_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+
+``` r
+## add the exclusive economic zones management layer
+# SOmanagement(eez = TRUE)
+
+SOgg(base_map)
+```
+
+    ## Warning: It is deprecated to specify `guide = FALSE` to remove a guide. Please
+    ## use `guide = "none"` instead.
+
+![](Maps_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
+
+``` r
+# ggsave(filename = "Figures/Antarctica_for_Tom.pdf", dpi = 300, device = "pdf",
+#        height = 5, width = 5, units = "in")
+```
+
 ## Figure 1, Panel C
 
 ``` r
@@ -579,7 +619,7 @@ autoplot(Saunders_bathy, geom=c("raster"), coast = FALSE) +
                  anchor = c(x = -26.365, y = -57.755), st.size = 3, st.dist = 0.03)
 ```
 
-![](Maps_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](Maps_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ``` r
 # ggsave(filename = "Figures/Figure1_panel3.pdf", dpi = 300, device = "pdf",
@@ -681,7 +721,7 @@ autoplot(fig2_bathy, geom=c("raster"), coast = FALSE, colour="white", size=0.1) 
 
     ## Warning: Ignoring unknown parameters: fill
 
-![](Maps_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](Maps_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ``` r
   # stat_density2d(data = as.data.frame(All),

@@ -352,6 +352,29 @@ autoplot(papoue, geom=c("raster"), coast = FALSE) +
 # SAF = 6 1
 ```
 
+## Inset Map for Tom 
+
+Playing around with [SOmap](https://australianantarcticdivision.github.io/SOmap/articles/SOmap-introduction.html)
+```{r}
+#remotes::install_github("AustralianAntarcticDivision/SOmap")
+library(SOmap)
+## also define a colour map to use for some examples
+my_cmap <- colorRampPalette(c("#4D4140", "#596F7E", "#168B98", "#ED5B67",
+                              "#E27766", "#DAAD50", "#EAC3A6"))(51)
+base_map <- SOmap(trim = -50) ## plot to 40S
+plot(base_map)
+
+## add the exclusive economic zones management layer
+# SOmanagement(eez = TRUE)
+
+SOgg(base_map)
+
+# ggsave(filename = "Figures/Antarctica_for_Tom.pdf", dpi = 300, device = "pdf",
+#        height = 5, width = 5, units = "in")
+
+```
+
+
 
 ## Figure 1, Panel C
 
