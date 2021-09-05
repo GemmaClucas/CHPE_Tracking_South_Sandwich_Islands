@@ -540,3 +540,171 @@ autoplot(fig2_bathy, geom=c("raster"), coast = FALSE, colour="white", size=0.1) 
 ```
 
 I can't figure out a way not to get the lines at the top and bottom of the NTZ so just crop them out manually afterwards.
+
+
+## Maps of other islands
+
+### Zavodovski
+```{r}
+# I downloaded the contour for SSI from the South Georgia GIS website
+SSI_contours.df <- readOGR("Ssi_contours/Ssi_contours.shp") %>% 
+  spTransform(., crs("+init=epsg:4326")) %>% 
+  crop(., c(-27, -26, -58, -57.5)) %>% 
+  spatialpolygons_to_df()
+
+# crop the bathymetry to just the area around Zavo
+Gen_bathy_mask <- bathy_mask  %>%  crop(., c(-27.63, -27.52, -56.33, -56.27))
+Gen_bathy <- marmap::as.bathy(Gen_bathy_mask)
+
+# crop the island polygons to just Zavo
+Gen_polygon.df <- SSI_polygons %>% 
+  crop(., c(-27.63, -27.52, -56.33, -56.27)) %>% 
+  spatialpolygons_to_df() %>% 
+  filter(hole == TRUE)
+
+# plot
+autoplot(Gen_bathy, geom=c("raster"), coast = FALSE) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  geom_contour(data = as.data.frame(Gen_bathy_mask, xy = TRUE), 
+               aes(x=x, y=y, z = full_ssi18a), 
+               colour = "white",
+               binwidth = 100,
+               size = 0.1) +
+  geom_polygon(data = Gen_polygon.df, 
+               aes(x = long, y = lat, group = group), 
+               fill = "grey40", 
+               colour = "grey40", 
+               size = 0.1) +
+    ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth (m)") +
+  ggsn::scalebar(Gen_polygon.df, location = "bottomright", 
+                 dist = 1, height=0.02, dist_unit = "km", transform = TRUE, model = "WGS84",
+                 box.fill = c("grey30", "white"), st.color = "grey30", box.color = "grey30",
+                 anchor = c(x = -27.59, y = -56.327), st.size = 2.5, st.dist = 0.05) +
+  theme(text=element_text(size=10))
+
+ggsave(filename = "Figures/Zavo.pdf", dpi = 300, device = "pdf",
+       height = 3.5, width = 6, units = "in")
+
+
+```
+
+
+### Candlemas
+
+```{r}
+# crop the bathymetry to just the area around Cand
+Gen_bathy_mask <- bathy_mask  %>%  crop(., c(-26.79, -26.65, -57.12, -57.06))
+Gen_bathy <- marmap::as.bathy(Gen_bathy_mask)
+
+# crop the island polygons to just Cand
+Gen_polygon.df <- SSI_polygons %>% 
+  crop(., c(-26.79, -26.65, -57.12, -57.06)) %>% 
+  spatialpolygons_to_df() %>% 
+  filter(hole == TRUE)
+
+# plot
+autoplot(Gen_bathy, geom=c("raster"), coast = FALSE) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  geom_contour(data = as.data.frame(Gen_bathy_mask, xy = TRUE), 
+               aes(x=x, y=y, z = full_ssi18a), 
+               colour = "white",
+               binwidth = 100,
+               size = 0.1) +
+  geom_polygon(data = Gen_polygon.df, 
+               aes(x = long, y = lat, group = group), 
+               fill = "grey40", 
+               colour = "grey40", 
+               size = 0.1) +
+    ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth (m)") +
+  ggsn::scalebar(Gen_polygon.df, location = "bottomright", 
+                 dist = 1, height=0.02, dist_unit = "km", transform = TRUE, model = "WGS84",
+                 box.fill = c("grey30", "white"), st.color = "grey30", box.color = "grey30",
+                 anchor = c(x = -26.75, y = -57.118), st.size = 2.5, st.dist = 0.05) +
+  theme(text=element_text(size=10))
+
+ggsave(filename = "Figures/Cand.pdf", dpi = 300, device = "pdf",
+       height = 3.5, width = 6, units = "in")
+```
+
+
+### Saunders
+
+```{r}
+# crop the bathymetry to just the area around Saunders
+Gen_bathy_mask <- bathy_mask  %>%  crop(., c(-26.6, -26.35, -57.85, -57.75))
+Gen_bathy <- marmap::as.bathy(Gen_bathy_mask)
+
+# crop the island polygons to just Saunders
+Gen_polygon.df <- SSI_polygons %>% 
+  crop(., c(-26.6, -26.35, -57.85, -57.75)) %>% 
+  spatialpolygons_to_df() %>% 
+  filter(hole == TRUE)
+
+# plot
+autoplot(Gen_bathy, geom=c("raster"), coast = FALSE) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  geom_contour(data = as.data.frame(Gen_bathy_mask, xy = TRUE), 
+               aes(x=x, y=y, z = full_ssi18a), 
+               colour = "white",
+               binwidth = 100,
+               size = 0.1) +
+  geom_polygon(data = Gen_polygon.df, 
+               aes(x = long, y = lat, group = group), 
+               fill = "grey40", 
+               colour = "grey40", 
+               size = 0.1) +
+    ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth (m)") +
+  ggsn::scalebar(Gen_polygon.df, location = "bottomright", 
+                 dist = 1, height=0.02, dist_unit = "km", transform = TRUE, model = "WGS84",
+                 box.fill = c("grey30", "white"), st.color = "grey30", box.color = "grey30",
+                 anchor = c(x = -26.55, y = -57.84), st.size = 2.5, st.dist = 0.05) +
+  theme(text=element_text(size=10))
+
+ggsave(filename = "Figures/Saund.pdf", dpi = 300, device = "pdf",
+       height = 3.5, width = 6, units = "in")
+```
+
+### Bellingshausen, Cook, Thule
+
+```{r}
+# crop the bathymetry to just the area around islands
+Gen_bathy_mask <- bathy_mask  %>%  crop(., c(-27.47, -27.02, -59.49, -59.39))
+Gen_bathy <- marmap::as.bathy(Gen_bathy_mask)
+
+# crop the island polygons to just islands
+Gen_polygon.df <- SSI_polygons %>% 
+  crop(., c(-27.47, -27.02, -59.49, -59.39)) %>% 
+  spatialpolygons_to_df() %>% 
+  filter(hole == TRUE)
+
+# plot
+autoplot(Gen_bathy, geom=c("raster"), coast = FALSE) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  geom_contour(data = as.data.frame(Gen_bathy_mask, xy = TRUE), 
+               aes(x=x, y=y, z = full_ssi18a), 
+               colour = "white",
+               binwidth = 100,
+               size = 0.1) +
+  geom_polygon(data = Gen_polygon.df, 
+               aes(x = long, y = lat, group = group), 
+               fill = "grey40", 
+               colour = "grey40", 
+               size = 0.1) +
+    ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth (m)") +
+  ggsn::scalebar(Gen_polygon.df, location = "bottomright", 
+                 dist = 1, height=0.02, dist_unit = "km", transform = TRUE, model = "WGS84",
+                 box.fill = c("grey30", "white"), st.color = "grey30", box.color = "grey30",
+                 anchor = c(x = -27.05, y = -59.48), st.size = 2.5, st.dist = 0.05) +
+  theme(text=element_text(size=10))
+
+ggsave(filename = "Figures/Thule.pdf", dpi = 300, device = "pdf",
+       height = 3.5, width = 6, units = "in")
+```
