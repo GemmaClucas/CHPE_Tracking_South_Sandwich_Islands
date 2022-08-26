@@ -14,3 +14,5 @@ A more fully annotated version of the code can be found in [1_inital_processing_
 5. Run the GAMs and evaluate the models. See [5_GAMs](https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/5_GAMs.md).
 
 6. Make predictions from the final models and do some plots. See [6_Predictions](https://github.com/GemmaClucas/CHPE_Tracking_South_Sandwich_Islands/blob/master/6_Predictions.md).
+
+Tiny change!
