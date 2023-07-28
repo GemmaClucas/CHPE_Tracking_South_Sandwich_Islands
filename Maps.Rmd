@@ -71,6 +71,7 @@ SSI_polygons.df <- SSI_polygons.df %>% filter(hole == TRUE)
 
 
 
+
 # MPA boundaries
 
 These are all individual shape files that I have downloaded from [here](https://add.data.bas.ac.uk/repository/entry/show?entryid=7f3136e7-8b50-4909-bb82-f4223a4f9768). There is a useful [viewer](https://sggis.gov.gs/) too.
@@ -707,4 +708,98 @@ autoplot(Gen_bathy, geom=c("raster"), coast = FALSE) +
 
 ggsave(filename = "Figures/Thule.pdf", dpi = 300, device = "pdf",
        height = 3.5, width = 6, units = "in")
+```
+
+
+# South Georgia Map
+
+Read in bathymetry that I downloaded some time.
+```{r}
+SG_bath_WGS84 <- raster("Bathymetry/gebco_bathymetry/sg_gebco2014.tif") %>% 
+  projectRaster(., crs=crs("+init=epsg:4326")) %>% 
+  crop(., c(-40, -33, -56, -53))
+
+# Plot to check
+plot(SG_bath_WGS84, col=viridis(100, option = "mako"))
+```
+
+These are the polygons for the coastline.
+```{r}
+SSI_WGS84 <- readOGR("Seamask.shp")
+SG_polygons <- spTransform(SSI_WGS84, crs("+init=epsg:4326")) %>% 
+  crop(., c(-40, -33, -56, -53))
+  
+```
+
+
+Convert and plot.
+```{r}
+SG_polygons.df <- spatialpolygons_to_df(SG_polygons)
+
+# filter out only the polygons for the islands
+SG_polygons.df <- SG_polygons.df %>% filter(hole == TRUE)
+
+# plot
+SG_polygons.df %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(fill="grey") +
+  geom_path(color="grey") +
+  theme_bw() +
+  coord_fixed() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "aliceblue"))
+```
+
+
+
+I think there is an easier way to do this:
+```{r}
+# This should load next time from a saved matrix
+SG <- getNOAA.bathy(lon1 = -40.00, lon2 = -33.50, lat1 = -55.50, lat2 = -53.50, resolution = 1.00, keep = TRUE)
+
+```
+
+
+
+For this I think I need a coastlines shapefile so that I can plot them as a separate layer, rather than relying on marmap, which plots empty coasts.
+```{r}
+
+# coastline shapefile
+world_coasts <- readOGR("ne_10m_coastline/ne_10m_coastline.shp") %>% 
+  spTransform(., crs("+init=epsg:4326")) %>% 
+  crop(., c(-40, -33, -55.5, -53.5)) %>% 
+  spatialpolygons_to_df()
+
+
+
+```
+
+
+Plot.
+```{r}
+SG[SG > 0] <- NA
+
+autoplot(SG, geom=c("raster"), coast = FALSE) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  geom_polygon(data = SG_polygons.df, aes(x = long, y = lat, group = group), fill = "grey50", colour = "grey50", size = 0.1) +
+  geom_polygon(data = world_coasts, aes(x = long, y = lat, group = group), fill = "grey50", colour = "grey50", size = 0.1) +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth (m)") +
+  ggsn::scalebar(world_coasts, location = "bottomright", 
+                 dist = 50, height=0.015, dist_unit = "km", transform = TRUE, model = "WGS84",
+                 box.fill = c("grey40", "white"), st.color = "grey40", box.color = "grey40",
+                 anchor = c(x = -33.8, y = -55.42), st.size = 3, st.dist = 0.05)
+  #theme(legend.position = "none")
+
+#ggsave(filename = "Figures/SouthGeorgia.pdf", dpi = 300, device = "pdf",
+#        height = 3.5, width = 8, units = "in")
+
+
+
+# SACCF = 2 1 and 1 1
+# APF = 3 1 and 4 1 and 5 1
+# SACCB = 7 1
+# SAF = 6 1
 ```

@@ -29,7 +29,7 @@ SSI_WGS84 <- readOGR("Seamask.shp")
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
     ## with 1 features
     ## It has 1 fields
 
@@ -38,8 +38,8 @@ SSI_polygons <- crop(SSI_WGS84, c(450000, 1095192, -695043.9, -100000)) %>%
   spTransform(., crs("+init=epsg:4326"))
 ```
 
-    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
-    ## intersection at or near point 77954.359424359995 26605.230663620001
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring
+    ## Self-intersection at or near point 77954.359424359995 26605.230663620001
 
     ## x[i, ] is invalid
 
@@ -95,7 +95,7 @@ CCAMLR <- readOGR("MPA/Ccamlr_zones/Ccamlr_zones.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/Ccamlr_zones/Ccamlr_zones.shp", layer: "Ccamlr_zones"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/MPA/Ccamlr_zones/Ccamlr_zones.shp", layer: "Ccamlr_zones"
     ## with 4 features
     ## It has 3 fields
     ## Integer64 fields read as strings:  id
@@ -110,7 +110,7 @@ NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
     ## with 1 features
     ## It has 2 fields
     ## Integer64 fields read as strings:  Id
@@ -151,7 +151,7 @@ CCAMLR2 <- readOGR("MPA/asd-shapefile-WGS84/asd-shapefile-WGS84.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/asd-shapefile-WGS84/asd-shapefile-WGS84.shp", layer: "asd-shapefile-WGS84"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/MPA/asd-shapefile-WGS84/asd-shapefile-WGS84.shp", layer: "asd-shapefile-WGS84"
     ## with 19 features
     ## It has 13 fields
 
@@ -194,7 +194,7 @@ June_ice <- readOGR("Sea ice medians/median_extent_S_06_1981-2010_polyline_v3.0.
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_06_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_06_1981-2010_polyline_v3.0"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_06_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_06_1981-2010_polyline_v3.0"
     ## with 1 features
     ## It has 1 fields
     ## Integer64 fields read as strings:  FID
@@ -207,7 +207,7 @@ July_ice <- readOGR("Sea ice medians/median_extent_S_07_1981-2010_polyline_v3.0.
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_07_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_07_1981-2010_polyline_v3.0"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_07_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_07_1981-2010_polyline_v3.0"
     ## with 1 features
     ## It has 1 fields
     ## Integer64 fields read as strings:  FID
@@ -220,7 +220,7 @@ August_ice <- readOGR("Sea ice medians/median_extent_S_08_1981-2010_polyline_v3.
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_08_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_08_1981-2010_polyline_v3.0"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_08_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_08_1981-2010_polyline_v3.0"
     ## with 1 features
     ## It has 1 fields
     ## Integer64 fields read as strings:  FID
@@ -233,7 +233,7 @@ September_ice <- readOGR("Sea ice medians/median_extent_S_09_1981-2010_polyline_
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_09_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_09_1981-2010_polyline_v3.0"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_09_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_09_1981-2010_polyline_v3.0"
     ## with 1 features
     ## It has 1 fields
     ## Integer64 fields read as strings:  FID
@@ -246,7 +246,7 @@ October_ice <- readOGR("Sea ice medians/median_extent_S_10_1981-2010_polyline_v3
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_10_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_10_1981-2010_polyline_v3.0"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_10_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_10_1981-2010_polyline_v3.0"
     ## with 1 features
     ## It has 1 fields
     ## Integer64 fields read as strings:  FID
@@ -259,7 +259,7 @@ November_ice <- readOGR("Sea ice medians/median_extent_S_11_1981-2010_polyline_v
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_11_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_11_1981-2010_polyline_v3.0"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_11_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_11_1981-2010_polyline_v3.0"
     ## with 1 features
     ## It has 1 fields
     ## Integer64 fields read as strings:  FID
@@ -272,7 +272,7 @@ December_ice <- readOGR("Sea ice medians/median_extent_S_12_1981-2010_polyline_v
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_12_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_12_1981-2010_polyline_v3.0"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Sea ice medians/median_extent_S_12_1981-2010_polyline_v3.0.shp", layer: "median_extent_S_12_1981-2010_polyline_v3.0"
     ## with 1 features
     ## It has 1 fields
     ## Integer64 fields read as strings:  FID
@@ -311,6 +311,10 @@ autoplot(dat, geom=c("raster"), coast = FALSE) +
                  box.fill = c("grey40", "white"), st.color = "grey40", box.color = "grey40",
                  anchor = c(x = -25.2, y = -56.15), st.size = 3, st.dist = 0.03)
 ```
+
+    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+
+    ## Warning: Please use `linewidth` instead.
 
 ![](Maps_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
@@ -408,12 +412,12 @@ SGSSI_WGS84.df <- readOGR("Seamask.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
     ## with 1 features
     ## It has 1 fields
 
-    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
-    ## intersection at or near point -35.789159179999999 -54.754994570000001
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring
+    ## Self-intersection at or near point -35.789159179999999 -54.754994570000001
 
     ## SpP is invalid
 
@@ -432,7 +436,7 @@ world_coasts <- readOGR("ne_10m_coastline/ne_10m_coastline.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/ne_10m_coastline/ne_10m_coastline.shp", layer: "ne_10m_coastline"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/ne_10m_coastline/ne_10m_coastline.shp", layer: "ne_10m_coastline"
     ## with 4133 features
     ## It has 3 fields
     ## Integer64 fields read as strings:  scalerank
@@ -446,7 +450,7 @@ fronts <- readOGR("Fronts/all_fronts.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Fronts/all_fronts.shp", layer: "all_fronts"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Fronts/all_fronts.shp", layer: "all_fronts"
     ## with 7 features
     ## It has 3 fields
 
@@ -521,8 +525,10 @@ plot(base_map)
 SOgg(base_map)
 ```
 
-    ## Warning: It is deprecated to specify `guide = FALSE` to remove a guide. Please
-    ## use `guide = "none"` instead.
+    ## Warning: The `guide` argument in `scale_*()` cannot be `FALSE`. This was
+    ## deprecated in ggplot2 3.3.4.
+
+    ## Warning: Please use "none" instead.
 
 ![](Maps_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
 
@@ -542,7 +548,7 @@ SSI_contours.df <- readOGR("Ssi_contours/Ssi_contours.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Ssi_contours/Ssi_contours.shp", layer: "Ssi_contours"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Ssi_contours/Ssi_contours.shp", layer: "Ssi_contours"
     ## with 177 features
     ## It has 4 fields
     ## Integer64 fields read as strings:  id index100
@@ -671,7 +677,7 @@ NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
     ## with 1 features
     ## It has 2 fields
     ## Integer64 fields read as strings:  Id
@@ -717,9 +723,11 @@ autoplot(fig2_bathy, geom=c("raster"), coast = FALSE, colour="white", size=0.1) 
                  anchor = c(x = -24.8, y = -57.35), st.size = 3, st.dist = 0.05)
 ```
 
-    ## Warning: Ignoring unknown parameters: colour, size
+    ## Warning in ggplot2::geom_raster(ggplot2::aes_string(fill = "z"), ...): Ignoring
+    ## unknown parameters: `colour` and `size`
 
-    ## Warning: Ignoring unknown parameters: fill
+    ## Warning in geom_path(data = NoTake_50km.df, aes(x = long, y = lat, group =
+    ## group), : Ignoring unknown parameters: `fill`
 
 ![](Maps_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
@@ -753,7 +761,7 @@ SSI_contours.df <- readOGR("Ssi_contours/Ssi_contours.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Ssi_contours/Ssi_contours.shp", layer: "Ssi_contours"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Ssi_contours/Ssi_contours.shp", layer: "Ssi_contours"
     ## with 177 features
     ## It has 4 fields
     ## Integer64 fields read as strings:  id index100
@@ -926,4 +934,125 @@ autoplot(Gen_bathy, geom=c("raster"), coast = FALSE) +
 ``` r
 ggsave(filename = "Figures/Thule.pdf", dpi = 300, device = "pdf",
        height = 3.5, width = 6, units = "in")
+```
+
+# South Georgia Map
+
+Read in bathymetry that I downloaded some time.
+
+``` r
+SG_bath_WGS84 <- raster("Bathymetry/gebco_bathymetry/sg_gebco2014.tif") %>% 
+  projectRaster(., crs=crs("+init=epsg:4326")) %>% 
+  crop(., c(-40, -33, -56, -53))
+
+# Plot to check
+plot(SG_bath_WGS84, col=viridis(100, option = "mako"))
+```
+
+![](Maps_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+These are the polygons for the coastline.
+
+``` r
+SSI_WGS84 <- readOGR("Seamask.shp")
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## with 1 features
+    ## It has 1 fields
+
+``` r
+SG_polygons <- spTransform(SSI_WGS84, crs("+init=epsg:4326")) %>% 
+  crop(., c(-40, -33, -56, -53))
+```
+
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring
+    ## Self-intersection at or near point -35.789159179999999 -54.754994570000001
+
+    ## x[i, ] is invalid
+
+    ## Attempting to make x[i, ] valid by zero-width buffering
+
+Convert and plot.
+
+``` r
+SG_polygons.df <- spatialpolygons_to_df(SG_polygons)
+
+# filter out only the polygons for the islands
+SG_polygons.df <- SG_polygons.df %>% filter(hole == TRUE)
+
+# plot
+SG_polygons.df %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(fill="grey") +
+  geom_path(color="grey") +
+  theme_bw() +
+  coord_fixed() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "aliceblue"))
+```
+
+![](Maps_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+I think there is an easier way to do this:
+
+``` r
+# This should load next time from a saved matrix
+SG <- getNOAA.bathy(lon1 = -40.00, lon2 = -33.50, lat1 = -55.50, lat2 = -53.50, resolution = 1.00, keep = TRUE)
+```
+
+    ## File already exists ; loading 'marmap_coord_-40;-55.5;-33.5;-53.5_res_1.csv'
+
+For this I think I need a coastlines shapefile so that I can plot them
+as a separate layer, rather than relying on marmap, which plots empty
+coasts.
+
+``` r
+# coastline shapefile
+world_coasts <- readOGR("ne_10m_coastline/ne_10m_coastline.shp") %>% 
+  spTransform(., crs("+init=epsg:4326")) %>% 
+  crop(., c(-40, -33, -55.5, -53.5)) %>% 
+  spatialpolygons_to_df()
+```
+
+    ## OGR data source with driver: ESRI Shapefile 
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/ne_10m_coastline/ne_10m_coastline.shp", layer: "ne_10m_coastline"
+    ## with 4133 features
+    ## It has 3 fields
+    ## Integer64 fields read as strings:  scalerank
+
+Plot.
+
+``` r
+SG[SG > 0] <- NA
+
+autoplot(SG, geom=c("raster"), coast = FALSE) + 
+  scale_fill_gradient(low = "steelblue4", high = "lightblue") +
+  geom_polygon(data = SG_polygons.df, aes(x = long, y = lat, group = group), fill = "grey50", colour = "grey50", size = 0.1) +
+  geom_polygon(data = world_coasts, aes(x = long, y = lat, group = group), fill = "grey50", colour = "grey50", size = 0.1) +
+  ylab("Latitude") +
+  xlab("Longitude") +
+  labs(fill = "Depth (m)") +
+  ggsn::scalebar(world_coasts, location = "bottomright", 
+                 dist = 50, height=0.015, dist_unit = "km", transform = TRUE, model = "WGS84",
+                 box.fill = c("grey40", "white"), st.color = "grey40", box.color = "grey40",
+                 anchor = c(x = -33.8, y = -55.42), st.size = 3, st.dist = 0.05)
+```
+
+![](Maps_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
+``` r
+  #theme(legend.position = "none")
+
+ ggsave(filename = "Figures/SouthGeorgia.pdf", dpi = 300, device = "pdf",
+        height = 3.5, width = 8, units = "in")
+
+
+
+# SACCF = 2 1 and 1 1
+# APF = 3 1 and 4 1 and 5 1
+# SACCB = 7 1
+# SAF = 6 1
 ```
