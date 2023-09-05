@@ -540,6 +540,10 @@ ggplot() +
   xlab("Longitude") +
   ylab("Latitude")
 ```
+Exporting the raster for Vicky
+```{r}
+#writeRaster(r3, filename="POccurrenceAllIslands.tif", format="GTiff")
+```
 
 
 With contour lines
@@ -609,6 +613,12 @@ stack_sum <- calc(stack, sum)
 # 
 # plot(ZAV_expected)
 ```
+
+Export for Vicky
+```{r}
+#writeRaster(stack_sum, filename="WeightedPOccurrenceAllIslands.tif", format="GTiff")
+```
+
 
 
 Plot weighted distribution.

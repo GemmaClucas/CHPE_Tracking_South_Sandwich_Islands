@@ -3,15 +3,13 @@ Making predictions from the model
 Gemma Clucas
 5/3/2021
 
-Read in the
-data.
+Read in the data.
 
 ``` r
 data <- read.csv(file = "PresBackgroundLocationsWithEnvironmentalVariables.csv", stringsAsFactors = FALSE)
 ```
 
-Run the final
-model.
+Run the final model.
 
 ``` r
 GAM <- gam(pres ~ s(colonydist, k = 3) + s(SST, k = 6), data=data, bs="cs", family=binomial, select=TRUE, method='GCV.Cp')
@@ -26,7 +24,7 @@ Seamask<-readOGR("Seamask.shp")
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
     ## with 1 features
     ## It has 1 fields
 
@@ -35,13 +33,12 @@ SSI_polygons <- crop(Seamask, c(450000, 1095192, -695043.9, -100000)) %>%
   spTransform(., crs("+init=epsg:4326"))
 ```
 
-    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
-    ## intersection at or near point 77954.359424359995 26605.230663620001
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring
+    ## Self-intersection at or near point 77954.359424359995 26605.230663620001
 
     ## x[i, ] is invalid
 
-    ## Warning in rgeos::gIntersection(x[i, ], y, byid = TRUE, drop_lower_td = TRUE):
-    ## Invalid objects found; consider using set_RGEOS_CheckValidity(2L)
+    ## Attempting to make x[i, ] valid by zero-width buffering
 
 ``` r
 # convert to dataframe for use with ggplot2
@@ -99,7 +96,7 @@ NoTake_50km <- readOGR("MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp") %>
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/MPA/sg_mpa_notake_ssi50km/sg_mpa_notake_ssi50km.shp", layer: "sg_mpa_notake_ssi50km"
     ## with 1 features
     ## It has 2 fields
     ## Integer64 fields read as strings:  Id
@@ -133,11 +130,10 @@ NoTake_50km.df <- spatialpolygons_to_df(NoTake_50km)
 # Benthic_closed.df <- spatialpolygons_to_df(Benthic_closed)
 ```
 
-## 1\. Predict around Saunders to check that the distribution looks ok
+## 1. Predict around Saunders to check that the distribution looks ok
 
 This just creates a raster across the study area using the bathymetry
-raster cropped to the right
-extent.
+raster cropped to the right extent.
 
 ``` r
 # Read in bathymetry raster and crop to extent of the study area around Saunders
@@ -168,17 +164,16 @@ SSI_WGS84 <- readOGR("Seamask.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
     ## with 1 features
     ## It has 1 fields
 
-    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
-    ## intersection at or near point 77954.359424359995 26605.230663620001
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring
+    ## Self-intersection at or near point 77954.359424359995 26605.230663620001
 
     ## x[i, ] is invalid
 
-    ## Warning in rgeos::gIntersection(x[i, ], y, byid = TRUE, drop_lower_td = TRUE):
-    ## Invalid objects found; consider using set_RGEOS_CheckValidity(2L)
+    ## Attempting to make x[i, ] valid by zero-width buffering
 
 ``` r
 # Cut out land
@@ -280,8 +275,7 @@ wMeanSST_resampled <- resample(x = wMeanSST, y = dist, method = 'bilinear')
 
 Use this to sample the distance and SST rasters. The values for the max
 and min long/lat are from converting the depth raster to LAEA after
-cropping it to the study area extent
-(above).
+cropping it to the study area extent (above).
 
 ``` r
 long <- seq(-119511.7 , 83876.27, 1000) #first minimum longitude in m, then max, 1000 is 1km
@@ -351,8 +345,7 @@ ggplot() +
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
-What is the actual distribution of the
-data?
+What is the actual distribution of the data?
 
 ``` r
 All <- read.csv("Chick-rearing_trips/All_chick-rearing_trips.csv", stringsAsFactors = FALSE) 
@@ -382,7 +375,7 @@ ggplot() +
 
 The actual distribution is pretty close to the predicted distribution.
 
-## 2\. Predict around all other colonies
+## 2. Predict around all other colonies
 
 Make raster for entire chain of islands using the bathymetry raster as a
 starting point.
@@ -399,17 +392,16 @@ SSI_WGS84 <- readOGR("Seamask.shp") %>%
 ```
 
     ## OGR data source with driver: ESRI Shapefile 
-    ## Source: "/Users/gemmaclucas/GitHub/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
+    ## Source: "/Volumes/Data_SS1/CHPE_Tracking_South_Sandwich_Islands/Seamask.shp", layer: "Seamask"
     ## with 1 features
     ## It has 1 fields
 
-    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring Self-
-    ## intersection at or near point 77954.359424359995 26605.230663620001
+    ## Warning in RGEOSUnaryPredFunc(spgeom, byid, "rgeos_isvalid"): Ring
+    ## Self-intersection at or near point 77954.359424359995 26605.230663620001
 
     ## x[i, ] is invalid
 
-    ## Warning in rgeos::gIntersection(x[i, ], y, byid = TRUE, drop_lower_td = TRUE):
-    ## Invalid objects found; consider using set_RGEOS_CheckValidity(2L)
+    ## Attempting to make x[i, ] valid by zero-width buffering
 
 ``` r
 # Cut out land
@@ -449,8 +441,7 @@ raster::plot(wMeanSST_resampled, col=viridis(100))
 ### Make a grid with a 1x1km resolution to sample the raster layers
 
 First I need to find the extent of the entire island change when it’s in
-LAEA
-projection.
+LAEA projection.
 
 ``` r
 projectRaster(wMeanSST_resampled, crs = CRS("+proj=laea +lon_0=-26 +lat_0=-58 +units=m"))
@@ -691,6 +682,11 @@ ggplot() +
 ```
 
 ![](6_Predictions_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->
+Exporting the raster for Vicky
+
+``` r
+#writeRaster(r3, filename="POccurrenceAllIslands.tif", format="GTiff")
+```
 
 With contour lines
 
@@ -724,18 +720,19 @@ autoplot(marmap_dat, geom=c("contour"), coast = FALSE, colour="grey50", size=0.1
   theme(panel.background = element_rect(fill = "white", colour = "grey30"))
 ```
 
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will
+    ## replace the existing one.
 
-    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
+    ## Warning: Removed 10666 rows containing non-finite values (`stat_contour()`).
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 ``` r
 ggsave(filename = "Figures/Figure4a_PofOccurrence.pdf", dpi = 300, device = "pdf",
        height = 5, width = 5, units = "in")
 ```
 
-    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
+    ## Warning: Removed 10666 rows containing non-finite values (`stat_contour()`).
 
 ### Calculate weighted distributions for each island
 
@@ -773,6 +770,12 @@ stack_sum <- calc(stack, sum)
 # cellStats(ZAV_expected, stat = "sum")
 # 
 # plot(ZAV_expected)
+```
+
+Export for Vicky
+
+``` r
+#writeRaster(stack_sum, filename="WeightedPOccurrenceAllIslands.tif", format="GTiff")
 ```
 
 Plot weighted distribution.
@@ -814,7 +817,9 @@ ggplot() +
   ylim(c(-60, -55.5))
 ```
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+    ## Warning: Removed 5658 rows containing missing values (`geom_tile()`).
+
+![](6_Predictions_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
 ``` r
 autoplot(marmap_dat, geom=c("contour"), coast = FALSE, colour="grey50", size=0.1) +
@@ -836,15 +841,16 @@ autoplot(marmap_dat, geom=c("contour"), coast = FALSE, colour="grey50", size=0.1
   theme(panel.background = element_rect(fill = "white", colour = "grey30"))
 ```
 
-    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+    ## Coordinate system already present. Adding new coordinate system, which will
+    ## replace the existing one.
 
-    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
+    ## Warning: Removed 10666 rows containing non-finite values (`stat_contour()`).
 
-![](6_Predictions_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](6_Predictions_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
 ``` r
 ggsave(filename = "Figures/Figure4a_WeightedPofOccurrence.pdf", dpi = 300, device = "pdf",
        height = 5, width = 5, units = "in")
 ```
 
-    ## Warning: Removed 10666 rows containing non-finite values (stat_contour).
+    ## Warning: Removed 10666 rows containing non-finite values (`stat_contour()`).
